@@ -80,6 +80,7 @@ async def register_mobile_app(
         "device_name": device_name,
         "manufacturer": MANUFACTURER,
         "model": MODEL,
+        "os_name": platform.system(),
         "os_version": OS_VERSION,
         "supports_encryption": False,
         # Required: tells HA to create notify.mobile_app_* and enable WS delivery
