@@ -478,10 +478,10 @@ class ClimateOverlay(BaseOverlay):
         painter.setPen(self._fg_color(int(alpha * 0.4)))
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self._text)
 
-        self._draw_control_pill(painter, rect.center().x(), 48, alpha)
+        self._draw_control_pill(painter, rect.center().x(), 48, alpha, compact=True)
 
         if self._content_opacity > 0.01:
-            self._draw_advanced_controls(painter, rect, int(alpha * self._content_opacity), start_y=90)
+            self._draw_advanced_controls(painter, rect, int(alpha * self._content_opacity), start_y=78)
 
     def _draw_split_layout(self, painter, rect, alpha):
         close_size = 20
@@ -507,11 +507,11 @@ class ClimateOverlay(BaseOverlay):
             right_rect = QRect(mid_x, 0, rect.width() - mid_x, rect.height())
             self._draw_advanced_controls_split(painter, right_rect, int(alpha * self._content_opacity))
 
-    def _draw_control_pill(self, painter, cx, cy, alpha):
-        btn_radius = 13
-        spacing    = 16
+    def _draw_control_pill(self, painter, cx, cy, alpha, compact=False):
+        btn_radius = 10 if compact else 13
+        spacing    = 12 if compact else 16
 
-        font_val = QFont(SYSTEM_FONT, 16, QFont.Weight.Light)
+        font_val = QFont(SYSTEM_FONT, 13 if compact else 16, QFont.Weight.Light)
         painter.setFont(font_val)
         fm = painter.fontMetrics()
         val_str = f"{self._value:.1f}".replace('.0', '')
@@ -519,7 +519,7 @@ class ClimateOverlay(BaseOverlay):
         text_w  = fm.horizontalAdvance(val_str)
 
         inner_w  = btn_radius * 2 + spacing + text_w + 10 + spacing + btn_radius * 2
-        pill_h   = 46
+        pill_h   = 36 if compact else 46
         pill_rect = QRect(0, 0, inner_w + 24, pill_h)
         pill_rect.moveCenter(QPoint(cx, cy))
 

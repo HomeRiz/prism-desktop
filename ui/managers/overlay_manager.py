@@ -671,12 +671,8 @@ class OverlayManager(QObject):
         
         target_rect = self._calculate_target_rect_and_siblings(source_btn, slot, overlay_type='climate')
         
-        # Enforce Minimum Height for Climate Overlay
-        # Stacked layout (≤420px wide) needs more room: pill + MODE + FAN rows reach y≈166
-        if target_rect.width() <= 420:
-            min_height = 185
-        else:
-            min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
+        # Enforce Minimum Height (2 Rows) for Climate Overlay
+        min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
         if target_rect.height() < min_height:
             target_rect.setHeight(min_height)
             
