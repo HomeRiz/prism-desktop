@@ -1,4 +1,4 @@
-from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QRect, QPoint
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer, QRect, QPoint, QEvent
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import QWidget
 
@@ -100,6 +100,13 @@ class OverlayManager(QObject):
         self._live_dimming = True
         self._pending_open_action = None
         self._temperature_unit_preference = "celsius"
+
+        parent.installEventFilter(self)
+
+    def eventFilter(self, obj, event):
+        if obj is self.parent_widget and event.type() == QEvent.Type.Resize:
+            self.close_all_overlays()
+        return False
 
     def close_all_overlays(self):
         """Instantly hide any active overlay. Called before navigating away from grid."""
@@ -664,8 +671,12 @@ class OverlayManager(QObject):
         
         target_rect = self._calculate_target_rect_and_siblings(source_btn, slot, overlay_type='climate')
         
-        # Enforce Minimum Height (2 Rows) for Climate Overlay
-        min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
+        # Enforce Minimum Height for Climate Overlay
+        # Stacked layout (≤420px wide) needs more room: pill + MODE + FAN rows reach y≈166
+        if target_rect.width() <= 420:
+            min_height = 185
+        else:
+            min_height = (BUTTON_HEIGHT * 2) + BUTTON_SPACING
         if target_rect.height() < min_height:
             target_rect.setHeight(min_height)
             

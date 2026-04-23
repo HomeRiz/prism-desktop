@@ -9,6 +9,7 @@ from ui.icons import get_icon, get_mdi_font, Icons
 from core.utils import SYSTEM_FONT
 from core.temperature_utils import format_temperature
 from ui.widgets.dashboard_button_painter import DashboardButtonPainter
+from ui.utils.glass_effect import draw_frosted_pill
 
 # ── Shared Overlay Animation Constants ──────────────────────────────
 MORPH_OPEN_DURATION   = 400                          # ms – expand from button
@@ -351,6 +352,36 @@ class ClimateOverlay(BaseOverlay):
         self._mode_btns       = []
         self._fan_btns        = []
 
+        self._press_rect  = QRect()
+        self._press_scale = 1.0
+        self._press_anim  = QPropertyAnimation(self, b"press_scale_prop")
+        self._press_anim.finished.connect(self._on_press_anim_finished)
+
+    def get_press_scale(self): return self._press_scale
+    def set_press_scale(self, v):
+        self._press_scale = v
+        self.update()
+    press_scale_prop = pyqtProperty(float, get_press_scale, set_press_scale)
+
+    def _on_press_anim_finished(self):
+        if self._press_scale < 1.0:
+            self._press_anim.setDuration(180)
+            self._press_anim.setEasingCurve(QEasingCurve.Type.OutBack)
+            self._press_anim.setStartValue(self._press_scale)
+            self._press_anim.setEndValue(1.0)
+            self._press_anim.start()
+        else:
+            self._press_rect = QRect()
+
+    def _trigger_press_anim(self, btn_rect: QRect):
+        self._press_rect = btn_rect
+        self._press_anim.stop()
+        self._press_anim.setDuration(80)
+        self._press_anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+        self._press_anim.setStartValue(1.0)
+        self._press_anim.setEndValue(0.85)
+        self._press_anim.start()
+
     def configure_temperature_range(self, min_temp: float, max_temp: float, step: float, display_unit: str | None = None):
         self._min_temp = min_temp
         self._max_temp = max_temp
@@ -399,12 +430,14 @@ class ClimateOverlay(BaseOverlay):
             self.adjust_temp(self._step)
         for rect_btn, mode in self._mode_btns:
             if rect_btn.contains(pos):
+                self._trigger_press_anim(rect_btn)
                 self._current_hvac_mode = mode
                 self.mode_changed.emit(mode)
                 self.update()
                 return
         for rect_btn, mode in self._fan_btns:
             if rect_btn.contains(pos):
+                self._trigger_press_anim(rect_btn)
                 self._current_fan_mode = mode
                 self.fan_changed.emit(mode)
                 self.update()
@@ -445,11 +478,10 @@ class ClimateOverlay(BaseOverlay):
         painter.setPen(self._fg_color(int(alpha * 0.4)))
         painter.drawText(title_rect, Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, self._text)
 
-        center_y = 42
-        self._draw_control_pill(painter, rect.center().x(), center_y, alpha)
+        self._draw_control_pill(painter, rect.center().x(), 48, alpha)
 
         if self._content_opacity > 0.01:
-            self._draw_advanced_controls(painter, rect, int(alpha * self._content_opacity), start_y=78)
+            self._draw_advanced_controls(painter, rect, int(alpha * self._content_opacity), start_y=90)
 
     def _draw_split_layout(self, painter, rect, alpha):
         close_size = 20
@@ -469,7 +501,7 @@ class ClimateOverlay(BaseOverlay):
         painter.setPen(QPen(self._fg_color(int(alpha * 0.1)), 1))
         painter.drawLine(mid_x, 20, mid_x, rect.height() - 20)
 
-        self._draw_control_pill(painter, mid_x // 2, rect.height() // 2 + 10, alpha)
+        self._draw_control_pill(painter, mid_x // 2, rect.height() // 2 + 5, alpha)
 
         if self._content_opacity > 0.01:
             right_rect = QRect(mid_x, 0, rect.width() - mid_x, rect.height())
@@ -477,42 +509,66 @@ class ClimateOverlay(BaseOverlay):
 
     def _draw_control_pill(self, painter, cx, cy, alpha):
         btn_radius = 13
-        spacing    = 24
+        spacing    = 16
 
-        font_val = QFont(SYSTEM_FONT, 18, QFont.Weight.Light)
+        font_val = QFont(SYSTEM_FONT, 16, QFont.Weight.Light)
         painter.setFont(font_val)
         fm = painter.fontMetrics()
-        val_str  = f"{self._value:.1f}".replace('.0', '')
-        val_str  = f"{val_str}°{self._display_temp_unit}"
-        text_w   = fm.horizontalAdvance(val_str)
-        text_h   = fm.height()
+        val_str = f"{self._value:.1f}".replace('.0', '')
+        val_str = f"{val_str}°{self._display_temp_unit}"
+        text_w  = fm.horizontalAdvance(val_str)
 
-        text_rect = QRect(0, 0, text_w + 10, text_h)
-        text_rect.moveCenter(QPoint(cx, cy))
+        inner_w  = btn_radius * 2 + spacing + text_w + 10 + spacing + btn_radius * 2
+        pill_h   = 46
+        pill_rect = QRect(0, 0, inner_w + 24, pill_h)
+        pill_rect.moveCenter(QPoint(cx, cy))
 
-        painter.setPen(self._fg_color(alpha))
-        painter.drawText(text_rect, Qt.AlignmentFlag.AlignCenter, val_str)
+        pill_path = QPainterPath()
+        pill_path.addRoundedRect(QRectF(pill_rect), pill_h // 2, pill_h // 2)
+        painter.fillPath(pill_path, QColor(0, 0, 0, int(alpha * 0.18)))
+        painter.setPen(QPen(QColor(255, 255, 255, int(alpha * 0.12)), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(pill_rect), pill_h // 2, pill_h // 2)
 
-        btn_x_minus = text_rect.left() - spacing - btn_radius
+        text_left  = cx - text_w // 2
+        text_right = cx + text_w // 2
+
+        btn_x_minus = text_left - spacing - btn_radius
         self._btn_minus_click = QRect(btn_x_minus - btn_radius, cy - btn_radius, btn_radius * 2, btn_radius * 2)
-
-        btn_x_plus = text_rect.right() + spacing + btn_radius
-        self._btn_plus_click = QRect(btn_x_plus - btn_radius, cy - btn_radius, btn_radius * 2, btn_radius * 2)
+        btn_x_plus  = text_right + spacing + btn_radius
+        self._btn_plus_click  = QRect(btn_x_plus - btn_radius, cy - btn_radius, btn_radius * 2, btn_radius * 2)
 
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setFont(get_mdi_font(18))
 
         painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(66, 133, 244, int(alpha * 0.8)))
+        painter.setBrush(QColor(66, 133, 244, int(alpha * 0.85)))
         painter.drawEllipse(QPoint(btn_x_minus, cy), btn_radius, btn_radius)
+
+        painter.setBrush(QColor(234, 67, 53, int(alpha * 0.85)))
+        painter.drawEllipse(QPoint(btn_x_plus, cy), btn_radius, btn_radius)
+
+        painter.setFont(get_mdi_font(16))
         painter.setPen(QColor(255, 255, 255, alpha))
         painter.drawText(self._btn_minus_click, Qt.AlignmentFlag.AlignCenter, get_icon('minus'))
+        painter.drawText(self._btn_plus_click,  Qt.AlignmentFlag.AlignCenter, get_icon('plus'))
 
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.setBrush(QColor(234, 67, 53, int(alpha * 0.8)))
-        painter.drawEllipse(QPoint(btn_x_plus, cy), btn_radius, btn_radius)
-        painter.setPen(QColor(255, 255, 255, alpha))
-        painter.drawText(self._btn_plus_click, Qt.AlignmentFlag.AlignCenter, get_icon('plus'))
+        # Baseline position so text is visually centered at cy
+        baseline_y = cy + (fm.ascent() - fm.descent()) / 2.0
+        painter.setFont(font_val)
+        painter.setPen(self._fg_color(alpha))
+        painter.drawText(QPointF(text_left, baseline_y), val_str)
+
+    def _draw_icon_pill(self, painter, btn_rect, is_active, alpha):
+        path = QPainterPath()
+        path.addRoundedRect(QRectF(btn_rect), 10, 10)
+        if is_active:
+            painter.fillPath(path, QColor(255, 255, 255, int(alpha * 0.14)))
+            painter.setPen(QPen(QColor(255, 255, 255, int(alpha * 0.22)), 1))
+        else:
+            painter.fillPath(path, QColor(255, 255, 255, int(alpha * 0.06)))
+            painter.setPen(QPen(QColor(255, 255, 255, int(alpha * 0.08)), 1))
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawRoundedRect(QRectF(btn_rect), 10, 10)
 
     def _draw_advanced_controls_split(self, painter, rect, alpha):
         self._mode_btns = []
@@ -522,10 +578,10 @@ class ClimateOverlay(BaseOverlay):
         fan_modes = self._fan_modes  or ['auto', 'low', 'high']
 
         margin_left = 20
-        y_mode   = 45
-        y_fan    = 100
+        y_mode    = 45
         icon_size = 36
         spacing   = 16
+        y_fan     = y_mode + icon_size + 30
 
         painter.setFont(QFont(SYSTEM_FONT, 8, QFont.Weight.Bold))
         painter.setPen(self._fg_color(int(alpha * 0.4)))
@@ -547,22 +603,25 @@ class ClimateOverlay(BaseOverlay):
             btn_rect = QRect(x, y_mode, icon_size, icon_size)
             self._mode_btns.append((btn_rect, mode))
             is_active = (mode == self._current_hvac_mode)
-            if is_active:
-                painter.setBrush(self._fg_color(40))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawRoundedRect(btn_rect, 8, 8)
-                painter.setPen(self._fg_color(alpha))
-            else:
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(self._fg_color(int(alpha * 0.4)))
+            scale = self._press_scale if btn_rect == self._press_rect else 1.0
+            if scale != 1.0:
+                c = btn_rect.center()
+                painter.save()
+                painter.translate(c.x(), c.y())
+                painter.scale(scale, scale)
+                painter.translate(-c.x(), -c.y())
+            self._draw_icon_pill(painter, btn_rect, is_active, alpha)
+            painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.4)))
+            painter.setFont(get_mdi_font(22))
             painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, get_icon(mode_icons.get(mode, 'help-circle-outline')))
+            if scale != 1.0:
+                painter.restore()
 
         painter.setFont(QFont(SYSTEM_FONT, 8, QFont.Weight.Bold))
         painter.setPen(self._fg_color(int(alpha * 0.4)))
         painter.drawText(QRect(rect.left() + margin_left, y_fan - 25, 60, 20),
                          Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter, "FAN")
 
-        painter.setFont(QFont(SYSTEM_FONT, 11, QFont.Weight.Bold))
         fan_map = {'low': '1', 'medium': '2', 'high': '3', 'mid': '2', 'min': '1', 'max': 'Max'}
 
         for i, mode in enumerate(fan_modes):
@@ -572,22 +631,25 @@ class ClimateOverlay(BaseOverlay):
             btn_rect = QRect(x, y_fan, icon_size, icon_size)
             self._fan_btns.append((btn_rect, mode))
             is_active = (mode == self._current_fan_mode)
-            if is_active:
-                painter.setBrush(self._fg_color(40))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawRoundedRect(btn_rect, 8, 8)
-                painter.setPen(self._fg_color(alpha))
-            else:
-                painter.setBrush(Qt.BrushStyle.NoBrush)
-                painter.setPen(self._fg_color(int(alpha * 0.4)))
+            scale = self._press_scale if btn_rect == self._press_rect else 1.0
+            if scale != 1.0:
+                c = btn_rect.center()
+                painter.save()
+                painter.translate(c.x(), c.y())
+                painter.scale(scale, scale)
+                painter.translate(-c.x(), -c.y())
+            self._draw_icon_pill(painter, btn_rect, is_active, alpha)
+            painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.4)))
             mode_lower = mode.lower()
             if mode_lower == 'auto':
                 painter.setFont(get_mdi_font(22))
                 painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, get_icon('fan-auto'))
-                painter.setFont(QFont(SYSTEM_FONT, 11, QFont.Weight.Bold))
             else:
+                painter.setFont(QFont(SYSTEM_FONT, 11, QFont.Weight.Bold))
                 painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter,
                                  fan_map.get(mode_lower, mode_lower.capitalize()[:1]))
+            if scale != 1.0:
+                painter.restore()
 
     def _draw_advanced_controls(self, painter, rect, alpha, start_y=78):
         self._mode_btns = []
@@ -628,15 +690,20 @@ class ClimateOverlay(BaseOverlay):
             btn_rect = QRect(x, y_pos_1, icon_size, icon_size)
             self._mode_btns.append((btn_rect, mode))
             is_active = (mode == self._current_hvac_mode)
-            if is_active:
-                painter.setBrush(self._fg_color(40))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawRoundedRect(btn_rect, 6, 6)
-            else:
-                painter.setBrush(Qt.BrushStyle.NoBrush)
+            scale = self._press_scale if btn_rect == self._press_rect else 1.0
+            if scale != 1.0:
+                c = btn_rect.center()
+                painter.save()
+                painter.translate(c.x(), c.y())
+                painter.scale(scale, scale)
+                painter.translate(-c.x(), -c.y())
+            self._draw_icon_pill(painter, btn_rect, is_active, alpha)
             painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.5)))
+            painter.setFont(get_mdi_font(20))
             painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter,
                              get_icon(mode_icons.get(mode, 'help-circle-outline')))
+            if scale != 1.0:
+                painter.restore()
 
         y_pos_2 = y_pos_1 + icon_size + 12
         fan_map = {'low': '1', 'medium': '2', 'high': '3', 'mid': '2', 'middle': '2', 'min': '1', 'max': 'Max'}
@@ -661,24 +728,27 @@ class ClimateOverlay(BaseOverlay):
             btn_rect = QRect(x, y_pos_2, icon_size, icon_size)
             self._fan_btns.append((btn_rect, mode))
             is_active = (mode == self._current_fan_mode)
-            if is_active:
-                painter.setBrush(self._fg_color(40))
-                painter.setPen(Qt.PenStyle.NoPen)
-                painter.drawRoundedRect(btn_rect, 6, 6)
-            else:
-                painter.setBrush(Qt.BrushStyle.NoBrush)
+            scale = self._press_scale if btn_rect == self._press_rect else 1.0
+            if scale != 1.0:
+                c = btn_rect.center()
+                painter.save()
+                painter.translate(c.x(), c.y())
+                painter.scale(scale, scale)
+                painter.translate(-c.x(), -c.y())
+            self._draw_icon_pill(painter, btn_rect, is_active, alpha)
+            painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.5)))
             mode_lower = mode.lower()
             if mode_lower == 'auto':
                 painter.setFont(get_mdi_font(20))
-                painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.5)))
                 painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, get_icon('fan-auto'))
             else:
                 text = fan_map.get(mode_lower)
                 if not text:
                     text = mode_lower.capitalize() if len(mode) > 3 else mode.upper()
                 painter.setFont(QFont(SYSTEM_FONT, 12, QFont.Weight.DemiBold))
-                painter.setPen(self._fg_color(alpha if is_active else int(alpha * 0.5)))
                 painter.drawText(btn_rect, Qt.AlignmentFlag.AlignCenter, text)
+            if scale != 1.0:
+                painter.restore()
 
 
 # ─────────────────────────────────────────────────────────────────────────────
