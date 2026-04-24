@@ -52,9 +52,15 @@ class DashboardButtonPainter:
             frac = max(0.0, min(1.0, float(fraction)))
             if frac > 0:
                 fill_w = pill_rect.width() * frac
+                fill_rect = QRectF(pill_rect.x(), pill_rect.y(), fill_w, pill_rect.height())
+                grad = QLinearGradient(0, fill_rect.bottom(), 0, fill_rect.top())
+                grad.setColorAt(0.0, fill_color)
+                lighter = QColor(fill_color)
+                lighter.setHsvF(lighter.hsvHueF(), max(0.0, lighter.hsvSaturationF() - 0.05), min(1.0, lighter.valueF() + 0.12))
+                grad.setColorAt(1.0, lighter)
                 painter.setClipPath(pill_path)
-                painter.setBrush(fill_color)
-                painter.drawRect(QRectF(pill_rect.x(), pill_rect.y(), fill_w, pill_rect.height()))
+                painter.setBrush(QBrush(grad))
+                painter.drawRect(fill_rect)
                 painter.setClipping(False)
 
         if text:
@@ -80,7 +86,12 @@ class DashboardButtonPainter:
         if fraction is not None:
             frac = max(0.0, min(1.0, float(fraction)))
             if frac > 0:
-                pen_fill = QPen(fill_color, thickness)
+                grad = QLinearGradient(0, arc_rect.bottom(), 0, arc_rect.top())
+                grad.setColorAt(0.0, fill_color)
+                lighter = QColor(fill_color)
+                lighter.setHsvF(lighter.hsvHueF(), max(0.0, lighter.hsvSaturationF() - 0.05), min(1.0, lighter.valueF() + 0.12))
+                grad.setColorAt(1.0, lighter)
+                pen_fill = QPen(QBrush(grad), thickness)
                 pen_fill.setCapStyle(Qt.PenCapStyle.RoundCap)
                 painter.setPen(pen_fill)
                 painter.drawArc(arc_rect, 180 * 16, -int(180 * 16 * frac))
@@ -500,7 +511,8 @@ class DashboardButtonPainter:
                 rect.width() - 2 * margin_x,
                 pill_h,
             )
-            font_size = max(7, min(12, int(pill_h * 0.5)))
+            is_1x1 = button.span_x == 1 and button.span_y == 1
+            font_size = max(6, min(9, int(pill_h * 0.4))) if is_1x1 else max(7, min(12, int(pill_h * 0.5)))
             DashboardButtonPainter.draw_horizontal_bar_pill(
                 painter,
                 pill_rect,
@@ -508,7 +520,7 @@ class DashboardButtonPainter:
                 fill_color=fill_color,
                 track_color=track_color,
                 text=text,
-                font=QFont(SYSTEM_FONT, font_size),
+                font=QFont(SYSTEM_FONT, font_size, QFont.Weight.Bold if is_1x1 else QFont.Weight.Normal),
                 text_color=text_color,
             )
         else:  # gauge
