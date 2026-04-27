@@ -121,7 +121,7 @@ def build_binary(base_dir):
         str(venv_python), '-m', 'PyInstaller',
         'main.py',
         '--name=PrismDesktop',
-        '--onefile',
+        '--onedir',
         '--windowed',
         '--add-data=materialdesignicons-webfont.ttf:.',
         '--add-data=mdi_mapping.json:.',
@@ -137,15 +137,17 @@ def build_binary(base_dir):
         print("\n❌ PyInstaller build failed!")
         sys.exit(1)
 
-    binary = base_dir / 'dist' / 'PrismDesktop'
+    # --onedir produces a folder, not a single file
+    binary_dir = base_dir / 'dist' / 'PrismDesktop'
+    binary = binary_dir / 'PrismDesktop'
     if not binary.exists():
-        print("Error: Binary not found at dist/PrismDesktop")
+        print("Error: Binary not found at dist/PrismDesktop/PrismDesktop")
         sys.exit(1)
 
-    return binary
+    return binary_dir
 
 
-def package_appimage(base_dir, binary_path, arch, appimagetool):
+def package_appimage(base_dir, binary_dir, arch, appimagetool):
     """Package the binary into an AppImage."""
     app_dir = base_dir / 'AppDir'
 
@@ -154,11 +156,18 @@ def package_appimage(base_dir, binary_path, arch, appimagetool):
         shutil.rmtree(app_dir)
 
     # Create directory structure
-    (app_dir / 'usr' / 'bin').mkdir(parents=True)
+    bin_dest = app_dir / 'usr' / 'bin'
+    bin_dest.mkdir(parents=True)
     (app_dir / 'usr' / 'share' / 'icons' / 'hicolor' / '256x256' / 'apps').mkdir(parents=True)
 
-    # Copy binary
-    shutil.copy2(binary_path, app_dir / 'usr' / 'bin' / 'PrismDesktop')
+    # Copy the whole output folder so the executable and its libraries
+    # end up together inside the AppImage.
+    for item in binary_dir.iterdir():
+        dest = bin_dest / item.name
+        if item.is_dir():
+            shutil.copytree(item, dest)
+        else:
+            shutil.copy2(item, dest)
 
     # Copy icon
     icon_src = base_dir / 'icon.png'
@@ -238,11 +247,11 @@ def main():
 
     # Step 1: Build binary
     print(f"\n[1/2] Building binary with PyInstaller...")
-    binary = build_binary(base_dir)
+    binary_dir = build_binary(base_dir)
 
     # Step 2: Package AppImage
     print(f"\n[2/2] Packaging AppImage for {arch}...")
-    package_appimage(base_dir, binary, arch, appimagetool)
+    package_appimage(base_dir, binary_dir, arch, appimagetool)
 
     print(f"\nDone! Distribute the .AppImage file to {arch} users.")
 

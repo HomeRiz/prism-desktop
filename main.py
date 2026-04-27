@@ -8,6 +8,7 @@ import os
 import json
 import time
 import asyncio
+import signal
 from pathlib import Path
 from typing import Optional
 import logging
@@ -127,7 +128,9 @@ class PrismDesktopApp(QObject):
         self.init_ha_client()
         self.init_ui()
         self.init_local_ipc()
-        
+        self._write_pid_file()
+        self._setup_signal_handlers()
+
         # Initialize shortcuts in background
         QTimer.singleShot(100, self.init_shortcuts)
         
@@ -208,6 +211,29 @@ class PrismDesktopApp(QObject):
             self._welcome_banner.finished.disconnect(self._on_welcome_done)
             self._welcome_banner.hide()
         self._welcome_banner = None
+
+    def _pid_file_path(self) -> Path:
+        from core.utils import get_config_path
+        return get_config_path("prism.pid")
+
+    def _write_pid_file(self):
+        try:
+            self._pid_file_path().write_text(str(os.getpid()))
+        except OSError:
+            pass
+
+    def _remove_pid_file(self):
+        try:
+            self._pid_file_path().unlink(missing_ok=True)
+        except OSError:
+            pass
+
+    def _setup_signal_handlers(self):
+        if not hasattr(signal, 'SIGUSR1'):
+            return
+        def _handler(signum, frame):
+            QTimer.singleShot(0, self._toggle_dashboard)
+        signal.signal(signal.SIGUSR1, _handler)
 
     def init_shortcuts(self):
         """Initialize global shortcuts."""
@@ -455,6 +481,7 @@ class PrismDesktopApp(QObject):
         self.stop_all_threads()
         if self.local_command_server:
             self.local_command_server.close()
+        self._remove_pid_file()
         QApplication.instance().quit()
     
     @pyqtSlot(dict)
