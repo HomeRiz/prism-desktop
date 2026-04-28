@@ -1786,7 +1786,7 @@ class DashboardButton(QFrame):
             edit_action.triggered.connect(lambda: self.edit_requested.emit(self.slot))
             
             dup_action = menu.addAction("Duplicate")
-            dup_action.triggered.connect(lambda: [print(f"DEBUG: Duplicate action triggered for slot {self.slot}"), self.duplicate_requested.emit(self.slot)])
+            dup_action.triggered.connect(lambda: self.duplicate_requested.emit(self.slot))
 
             # Move to ▶
             if self._page_count > 1:
