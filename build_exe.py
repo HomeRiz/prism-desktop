@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import shutil
+import tempfile
 from pathlib import Path
 
 
@@ -62,9 +63,22 @@ def build():
         "--exclude", "PySide6",  # Avoid Qt binding conflict
     ]
     
-    # Add icon if exists
+    # Add icon if exists — Windows needs .ico, so convert from .png via Pillow
+    ico_tmp = None
     if icon_path.exists():
-        cmd.extend(["--icon", str(icon_path)])
+        if sys.platform == "win32" and icon_path.suffix.lower() == ".png":
+            try:
+                from PIL import Image
+                tmp = tempfile.NamedTemporaryFile(suffix=".ico", delete=False)
+                tmp.close()
+                ico_tmp = Path(tmp.name)
+                img = Image.open(icon_path)
+                img.save(ico_tmp, format="ICO", sizes=[(256, 256), (128, 128), (64, 64), (48, 48), (32, 32), (16, 16)])
+                cmd.extend(["--icon", str(ico_tmp)])
+            except ImportError:
+                print("Warning: Pillow not installed — skipping icon. Run: pip install pillow")
+        else:
+            cmd.extend(["--icon", str(icon_path)])
         
     # Add cached mapping if exists
     mapping_path = base_dir / "mdi_mapping.json"
@@ -78,8 +92,12 @@ def build():
     
     print(f"Running: {' '.join(str(x) for x in cmd)}")
     
-    subprocess.check_call(cmd, cwd=base_dir)
-    
+    try:
+        subprocess.check_call(cmd, cwd=base_dir)
+    finally:
+        if ico_tmp and ico_tmp.exists():
+            ico_tmp.unlink()
+
     print("\nBuild complete!")
     print(f"Executable is at: {dist_dir / 'PrismDesktop.exe'}")
     print("Note: Configuration is stored in %APPDATA%/PrismDesktop/config.json")
