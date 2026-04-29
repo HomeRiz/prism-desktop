@@ -137,8 +137,8 @@ class HAWebSocket(QObject):
             self._running = False
             raise
         except Exception as e:
-            if self._running:  # Only emit error if not stopping
-                self.error.emit(str(e))
+            self.logger.error(f"WebSocket connection error: {e}")
+            self.error.emit(str(e))
         finally:
             await self._cleanup()
     
