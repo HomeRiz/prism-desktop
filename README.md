@@ -145,5 +145,9 @@ python3 build_linux.py
 
 This will build the binary, create an AppDir, and package it into an AppImage.
 
+## Troubleshooting
+
+**Reverse proxy users:** If you see `WS Error: 400, message="Duplicate 'Server' header found."`, your proxy is adding a duplicate `Server` header. In Caddy, add `header_up -Server` to your `reverse_proxy` block. Other proxies may have a similar setting.
+
 ## License
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
