@@ -369,9 +369,9 @@ class Dashboard(QWidget):
             banner.rejected.connect(on_reject)
 
     def _show_banner(self, message: str, banner_type: str, auto_dismiss_ms: int = None):
+        """Create and show a floating notification banner outside the dashboard."""
         if auto_dismiss_ms is None:
             auto_dismiss_ms = self.BANNER_DISMISS_MS
-        """Create and show a floating notification banner outside the dashboard."""
         if self.overlay_manager:
             self.overlay_manager.close_all_overlays()
         text_color = "#ffffff"
