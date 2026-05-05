@@ -1571,7 +1571,10 @@ class Dashboard(QWidget):
         # If we are not the active window, close.
         if self._ignore_focus_loss:
             return
-            
+
+        if self.config.get('appearance', {}).get('pin_window', False):
+            return
+
         if not self.isActiveWindow():
             self.close_animated()
             

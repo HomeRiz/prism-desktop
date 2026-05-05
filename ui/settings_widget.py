@@ -369,8 +369,12 @@ class SettingsWidget(QWidget):
         if sys.platform.startswith('linux'):
             self.glass_ui_check.setVisible(False)
 
+        self.pin_window_check = ToggleSwitch("Pin window")
+        self.pin_window_check.setToolTip("Keep the window open when clicking outside it")
+
         self.form.addRow("", self.show_dimming_check)
         self.form.addRow("", self.glass_ui_check)
+        self.form.addRow("", self.pin_window_check)
         
         # --- Shortcut Section ---
         self._add_section_header("SHORTCUT")
@@ -537,6 +541,7 @@ class SettingsWidget(QWidget):
              
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
         self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
+        self.pin_window_check.setChecked(app.get('pin_window', False))
         pages = app.get('pages', 3)
         self.pages_combo.setCurrentIndex(max(0, min(pages - 1, self.pages_combo.count() - 1)))
 
@@ -576,6 +581,7 @@ class SettingsWidget(QWidget):
             'button_style': self.button_style_combo.currentText(),
             'show_dimming': self.show_dimming_check.isChecked(),
             'glass_ui': self.glass_ui_check.isChecked(),
+            'pin_window': self.pin_window_check.isChecked(),
             'pages': self.pages_combo.currentIndex() + 1,
         })
 

@@ -70,6 +70,7 @@ class ConfigManager:
                 "border_effect": "Liquid Mercury",
                 "tray_position": "bottom",
                 "pages": 1,
+                "pin_window": False,
             },
             "shortcut": {"type": "keyboard", "value": "<ctrl>+<alt>+h"},
             "buttons": [],
