@@ -10,7 +10,8 @@ _SUPPORTED_LANGUAGES = {
     "es": "Español",
     "it": "Italiano",
     "de": "Deutsch",
-    "zh": "中文",
+    "zh": "中文（简体）",
+    "zh-TW": "中文（繁體）",
     "ja": "日本語",
 }
 
