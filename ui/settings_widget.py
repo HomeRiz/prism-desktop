@@ -18,7 +18,7 @@ from ui.widgets.toggle_switch import ToggleSwitch
 from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap
 from core.utils import SYSTEM_FONT
-from core.localization_manager import t, current_language, supported_languages
+from core.localization_manager import t, current_language, supported_languages, init_localization
 
 from core.build_info import APP_VERSION, get_display_version
 from core.worker_threads import ConnectionTestThread
@@ -665,6 +665,9 @@ class SettingsWidget(QWidget):
     # --- Logic ---
 
     def _on_language_changed(self, index: int):
+        selected_lang = self._language_codes[index]
+        init_localization(selected_lang)
+        self._language_restart_note.setText(t("settings.appearance.language_restart_note"))
         self._language_restart_note.show()
 
     def on_border_effect_changed(self, text):

@@ -1576,6 +1576,9 @@ class Dashboard(QWidget):
         if self.config.get('appearance', {}).get('pin_window', False):
             return
 
+        if self._active_banner and self._active_banner.isActiveWindow():
+            return
+
         if not self.isActiveWindow():
             self.close_animated()
             
