@@ -399,7 +399,6 @@ class SettingsWidget(QWidget):
 
         self.form.addRow("", self.show_dimming_check)
         self.form.addRow("", self.glass_ui_check)
-        self.form.addRow("", self.pin_window_check)
         
         # --- Shortcut Section ---
         self._add_section_header(t("settings.section.shortcut"))
