@@ -162,7 +162,7 @@
   "welcome.btn_next": "下一步",
   "welcome.btn_done": "完成",
   "overlay.climate.mode_label": "模式",
-  "overlay.climate.fan_label": "风速",
+  "overlay.climate.fan_label": "风量",
   "overlay.printer.no_feed": "无画面",
   "overlay.printer.confirm_stop": "确认？",
   "overlay.robot.start_btn": "启动",
