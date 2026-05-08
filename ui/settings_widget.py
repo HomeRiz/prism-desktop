@@ -351,6 +351,19 @@ class SettingsWidget(QWidget):
         self.button_style_combo.setMinimumWidth(120)
         self.form.addRow(t("settings.appearance.button_style_label"), self.button_style_combo)
 
+        # Language selector
+        self._language_codes = list(supported_languages().keys())
+        self.language_combo = QComboBox()
+        self.language_combo.addItems(list(supported_languages().values()))
+        self.language_combo.setMinimumWidth(120)
+        self.form.addRow(t("settings.appearance.language_label"), self.language_combo)
+
+        self._language_restart_note = QLabel(t("settings.appearance.language_restart_note"))
+        self._language_restart_note.setStyleSheet("color: #aaa; font-size: 11px;")
+        self._language_restart_note.hide()
+        self.form.addRow("", self._language_restart_note)
+        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
+
         self.tray_position_combo = QComboBox()
         self.tray_position_combo.addItems([
             t("settings.appearance.tray_bottom"),
@@ -371,19 +384,6 @@ class SettingsWidget(QWidget):
         self.pages_combo.addItems(["1", "2", "3", "4"])
         self.pages_combo.setMinimumWidth(120)
         self.form.addRow(t("settings.appearance.pages_label"), self.pages_combo)
-
-        # Language selector
-        self._language_codes = list(supported_languages().keys())
-        self.language_combo = QComboBox()
-        self.language_combo.addItems(list(supported_languages().values()))
-        self.language_combo.setMinimumWidth(120)
-        self.form.addRow(t("settings.appearance.language_label"), self.language_combo)
-
-        self._language_restart_note = QLabel(t("settings.appearance.language_restart_note"))
-        self._language_restart_note.setStyleSheet("color: #aaa; font-size: 11px;")
-        self._language_restart_note.hide()
-        self.form.addRow("", self._language_restart_note)
-        self.language_combo.currentIndexChanged.connect(self._on_language_changed)
 
         # Toggles
         self.show_dimming_check = ToggleSwitch(t("settings.appearance.dimming_toggle"))
