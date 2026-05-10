@@ -1477,24 +1477,19 @@ class DashboardButtonPainter:
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawEllipse(QPointF(dot_x, dot_y), base_r, base_r)
 
-        # Crescent moon travelling along the arc
+        # Moon sphere travelling along the arc
         if not above and moon_ratio is not None:
             moon_x, moon_y = arc_point(moon_ratio)
             moon_r = 5.0
-            glow_c = QColor(255, 245, 180, int(18 + 16 * pulse))
+            glow_c = QColor(200, 210, 230, int(15 + 15 * pulse))
             painter.setBrush(QBrush(glow_c))
             painter.setPen(Qt.PenStyle.NoPen)
-            glow_r = moon_r + 1.0 + 2.0 * pulse
-            painter.drawEllipse(QPointF(moon_x, moon_y), glow_r, glow_r)
-            outer_path = QPainterPath()
-            outer_path.addEllipse(QPointF(moon_x, moon_y), moon_r, moon_r)
-            inner_path = QPainterPath()
-            inner_path.addEllipse(QPointF(moon_x + moon_r * 0.42, moon_y - moon_r * 0.18),
-                                   moon_r * 0.82, moon_r * 0.82)
-            crescent = outer_path.subtracted(inner_path)
-            painter.setBrush(QBrush(QColor(255, 245, 180)))
+            painter.drawEllipse(QPointF(moon_x, moon_y), moon_r + 2.5, moon_r + 2.5)
+            sphere_path = QPainterPath()
+            sphere_path.addEllipse(QPointF(moon_x, moon_y), moon_r, moon_r)
+            painter.setBrush(QBrush(QColor(215, 215, 220)))
             painter.setPen(Qt.PenStyle.NoPen)
-            painter.drawPath(crescent)
+            painter.drawPath(sphere_path)
 
         # Time remaining text
         try:
