@@ -168,6 +168,12 @@ class DashboardButton(QFrame):
         self.pulse_anim.setKeyValueAt(0.5, 0.8)
         self.pulse_anim.setKeyValueAt(1, 0.0)
         
+        # Perimeter progress animation
+        self._perimeter_fraction = 0.0
+        self.perimeter_anim = QPropertyAnimation(self, b"perimeter_fraction")
+        self.perimeter_anim.setDuration(800)
+        self.perimeter_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
         # Bounce animation on click
         self._bounce_offset = 0.0
         self.bounce_anim = QPropertyAnimation(self, b"bounce_offset")
@@ -268,12 +274,21 @@ class DashboardButton(QFrame):
     
     def get_arrow_opacity(self):
         return self._arrow_opacity
-        
+
     def set_arrow_opacity(self, val):
         self._arrow_opacity = val
         self.update()
-        
+
     arrow_opacity = pyqtProperty(float, get_arrow_opacity, set_arrow_opacity)
+
+    def get_perimeter_fraction(self):
+        return self._perimeter_fraction
+
+    def set_perimeter_fraction(self, val):
+        self._perimeter_fraction = val
+        self.update()
+
+    perimeter_fraction = pyqtProperty(float, get_perimeter_fraction, set_perimeter_fraction)
     
     def get_bounce_offset(self):
         return self._bounce_offset
@@ -634,6 +649,12 @@ class DashboardButton(QFrame):
         vmax = self.config.get('sensor_max', 100.0)
         self._sensor_fraction = _compute_fraction(num, vmin, vmax)
         self._sensor_text = formatted if num is not None else (str(self._value) if self._value is not None else '--')
+
+        if style == 'perimeter' and self._sensor_fraction is not None:
+            self.perimeter_anim.stop()
+            self.perimeter_anim.setStartValue(self._perimeter_fraction)
+            self.perimeter_anim.setEndValue(self._sensor_fraction)
+            self.perimeter_anim.start()
 
         self.value_label.setText(self._sensor_text)
         self.name_label.setText(label)

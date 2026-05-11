@@ -309,6 +309,7 @@ class ButtonEditWidget(QWidget):
             t("button_editor.display_style_normal"),
             t("button_editor.display_style_gauge"),
             t("button_editor.display_style_bar"),
+            t("button_editor.display_style_perimeter"),
         ])
         self.display_style_combo.setToolTip(t("button_editor.display_style_tooltip"))
         self.form.addRow(t("button_editor.display_style_label"), self.display_style_combo)
@@ -726,7 +727,7 @@ class ButtonEditWidget(QWidget):
         """Show Min/Max rows only when Gauge or Bar is selected AND type is sensor."""
         is_sensor = self._current_type() == 'widget'
         style_idx = self.display_style_combo.currentIndex()
-        needs_range = is_sensor and style_idx in (1, 2)
+        needs_range = is_sensor and style_idx in (1, 2, 3)
         self.form.setRowVisible(self.sensor_min_spin, needs_range)
         self.form.setRowVisible(self.sensor_max_spin, needs_range)
 
@@ -953,7 +954,7 @@ class ButtonEditWidget(QWidget):
 
         # Display style (sensor)
         style = self.config.get('display_style', 'normal')
-        idx = {'normal': 0, 'gauge': 1, 'bar': 2}.get(style, 0)
+        idx = {'normal': 0, 'gauge': 1, 'bar': 2, 'perimeter': 3}.get(style, 0)
         self.display_style_combo.setCurrentIndex(idx)
         self.sensor_min_spin.setValue(float(self.config.get('sensor_min', 0.0)))
         self.sensor_max_spin.setValue(float(self.config.get('sensor_max', 100.0)))
@@ -1035,7 +1036,7 @@ class ButtonEditWidget(QWidget):
         
         if new_config['type'] == 'widget':
             new_config['precision'] = self.precision_spin.value()
-            new_config['display_style'] = ['normal', 'gauge', 'bar'][self.display_style_combo.currentIndex()]
+            new_config['display_style'] = ['normal', 'gauge', 'bar', 'perimeter'][self.display_style_combo.currentIndex()]
             new_config['sensor_min'] = self.sensor_min_spin.value()
             new_config['sensor_max'] = self.sensor_max_spin.value()
         

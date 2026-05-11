@@ -72,6 +72,68 @@ class DashboardButtonPainter:
             painter.drawText(pill_rect, Qt.AlignmentFlag.AlignCenter, text)
 
     @staticmethod
+    def _perimeter_path(rect, corner_r):
+        """Clockwise rounded-rect path starting at top-center (12 o'clock)."""
+        l, t, r, b = rect.left(), rect.top(), rect.right(), rect.bottom()
+        cx = (l + r) / 2.0
+        cr = corner_r
+        path = QPainterPath()
+        path.moveTo(cx, t)
+        path.lineTo(r - cr, t)
+        path.arcTo(r - 2*cr, t, 2*cr, 2*cr, 90, -90)
+        path.lineTo(r, b - cr)
+        path.arcTo(r - 2*cr, b - 2*cr, 2*cr, 2*cr, 0, -90)
+        path.lineTo(l + cr, b)
+        path.arcTo(l, b - 2*cr, 2*cr, 2*cr, 270, -90)
+        path.lineTo(l, t + cr)
+        path.arcTo(l, t, 2*cr, 2*cr, 180, -90)
+        path.lineTo(cx, t)
+        return path
+
+    @staticmethod
+    def draw_perimeter_progress(painter, rect, fraction, fill_color, track_color, thickness=3, offset=8):
+        """Draw a progress bar running around the button perimeter, inset by `offset` pixels."""
+        inset_rect = QRectF(rect).adjusted(offset, offset, -offset, -offset)
+        corner_r = max(8.0, 12.0 - offset)
+
+        path = DashboardButtonPainter._perimeter_path(inset_rect, corner_r)
+        total_len = path.length()
+        if total_len <= 0:
+            return
+
+        track_pen = QPen(track_color, thickness)
+        track_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        painter.setPen(track_pen)
+        painter.setBrush(Qt.BrushStyle.NoBrush)
+        painter.drawPath(path)
+
+        if fraction is None:
+            return
+        frac = max(0.0, min(1.0, float(fraction)))
+        if frac <= 0:
+            return
+
+        filled_len = frac * total_len
+        gap_len = max(0.001, total_len - filled_len)
+
+        grad = QLinearGradient(inset_rect.topLeft(), inset_rect.bottomLeft())
+        grad.setColorAt(0.0, fill_color)
+        lighter = QColor(fill_color)
+        lighter.setHsvF(
+            lighter.hsvHueF(),
+            max(0.0, lighter.hsvSaturationF() - 0.05),
+            min(1.0, lighter.valueF() + 0.12),
+        )
+        grad.setColorAt(1.0, lighter)
+
+        fill_pen = QPen(QBrush(grad), thickness)
+        fill_pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+        # setDashPattern values are in pen-width units, so divide by thickness
+        fill_pen.setDashPattern([filled_len / thickness, gap_len / thickness])
+        painter.setPen(fill_pen)
+        painter.drawPath(path)
+
+    @staticmethod
     def draw_gauge_arc(painter, rect, fraction, fill_color, track_color, thickness=None):
         arc_rect = QRectF(rect)
         if thickness is None:
@@ -114,9 +176,9 @@ class DashboardButtonPainter:
         if button.config.get('type') == 'sun':
             DashboardButtonPainter._draw_sun_button(button)
 
-        # Sensor widget with gauge/bar display style
+        # Sensor widget with gauge/bar/perimeter display style
         if (button.config.get('type') == 'widget'
-                and button.config.get('display_style') in ('gauge', 'bar')):
+                and button.config.get('display_style') in ('gauge', 'bar', 'perimeter')):
             DashboardButtonPainter._paint_widget_sensor(button)
 
         # Draw Camera Image (if applicable)
@@ -468,7 +530,7 @@ class DashboardButtonPainter:
     @staticmethod
     def _paint_widget_sensor(button):
         style = button.config.get('display_style')
-        if style not in ('gauge', 'bar'):
+        if style not in ('gauge', 'bar', 'perimeter'):
             return
 
         painter = QPainter(button)
@@ -530,7 +592,7 @@ class DashboardButtonPainter:
                 font=QFont(SYSTEM_FONT, font_size, QFont.Weight.Bold if is_1x1 else QFont.Weight.Normal),
                 text_color=text_color,
             )
-        else:  # gauge
+        elif style == 'gauge':
             is_1x1 = button.span_x == 1 and button.span_y == 1
             is_tall_1col = button.span_x == 1 and button.span_y >= 2
             if is_tall_1col:
@@ -605,6 +667,14 @@ class DashboardButtonPainter:
                     track_color=track_color,
                 )
 
+        if style == 'perimeter':
+            DashboardButtonPainter.draw_perimeter_progress(
+                painter,
+                QRectF(rect),
+                fraction=getattr(button, '_perimeter_fraction', fraction),
+                fill_color=fill_color,
+                track_color=track_color,
+            )
 
         painter.end()
 
