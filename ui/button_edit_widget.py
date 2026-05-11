@@ -37,7 +37,7 @@ class HueSlider(QWidget):
         rect = self.rect()
         grad = QLinearGradient(0, 0, rect.width(), 0)
         for i in range(7):
-            grad.setColorAt(i / 6, QColor.fromHsv(i * 60, 255, 255))
+            grad.setColorAt(i / 6, QColor.fromHsv((i * 60) % 360, 255, 255))
         painter.setPen(Qt.PenStyle.NoPen)
         painter.setBrush(grad)
         painter.drawRoundedRect(rect, 4, 4)
@@ -163,6 +163,7 @@ class ButtonEditWidget(QWidget):
             color_btn_border = "#333"
             section_header_color = "#666666"  # Dark gray for light mode
             custom_btn_ring = "rgba(0, 0, 0, 0.28)"
+            pill_bg = "rgba(0, 0, 0, 0.05)"
         else:
             input_bg = "rgba(255, 255, 255, 0.08)"
             input_border = "rgba(255, 255, 255, 0.1)"
@@ -170,6 +171,7 @@ class ButtonEditWidget(QWidget):
             color_btn_border = "white"
             section_header_color = "#8e8e93"  # Apple gray for dark mode
             custom_btn_ring = "rgba(255, 255, 255, 0.3)"
+            pill_bg = "rgba(255, 255, 255, 0.07)"
             
         from ui.styles import Typography, Dimensions
         
@@ -252,7 +254,12 @@ class ButtonEditWidget(QWidget):
                 padding: 0px;
             }}
             QPushButton#colorSaveBtn:hover {{ background-color: #006ce6; }}
-            
+
+            QWidget#colorPickerPill {{
+                background-color: {pill_bg};
+                border-radius: 10px;
+            }}
+
             QPushButton#recordBtn {{
                 background-color: #C62828;
                 border: none;
@@ -579,9 +586,11 @@ class ButtonEditWidget(QWidget):
 
         # --- Inline custom color picker (hidden by default) ---
         self.color_picker_container = QWidget()
+        self.color_picker_container.setObjectName("colorPickerPill")
+        self.color_picker_container.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         picker_layout = QVBoxLayout(self.color_picker_container)
-        picker_layout.setContentsMargins(0, 4, 0, 0)
-        picker_layout.setSpacing(6)
+        picker_layout.setContentsMargins(10, 10, 10, 10)
+        picker_layout.setSpacing(8)
 
         self.hue_slider = HueSlider()
         picker_layout.addWidget(self.hue_slider)
