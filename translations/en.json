@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "Display album artwork as button background",
   "button_editor.animated_bg_toggle": "Animated Background",
   "button_editor.animated_bg_tooltip": "Enable animated parallax background when no album art is shown",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "Automation",
   "button_editor.type.camera": "Camera",
   "button_editor.type.climate": "Climate",

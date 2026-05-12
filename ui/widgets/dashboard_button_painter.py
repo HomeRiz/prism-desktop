@@ -562,6 +562,7 @@ class DashboardButtonPainter:
         track_color.setAlpha(40)
 
         fraction = getattr(button, '_sensor_fraction', None)
+        gauge_fraction = getattr(button, '_gauge_fraction', fraction)
         text = getattr(button, '_sensor_text', '') or ''
 
         has_label = bool(button.config.get('label'))
@@ -604,7 +605,7 @@ class DashboardButtonPainter:
                 arc_y = rect.y() + top_pad
                 arc_rect = QRectF(arc_x, arc_y, arc_size, arc_size)
                 DashboardButtonPainter.draw_gauge_arc(
-                    painter, arc_rect, fraction=fraction,
+                    painter, arc_rect, fraction=gauge_fraction,
                     fill_color=fill_color, track_color=track_color,
                 )
                 baseline_y = arc_y + arc_size / 2
@@ -635,7 +636,7 @@ class DashboardButtonPainter:
                 DashboardButtonPainter.draw_gauge_arc(
                     painter,
                     arc_rect,
-                    fraction=fraction,
+                    fraction=gauge_fraction,
                     fill_color=fill_color,
                     track_color=track_color,
                 )
@@ -662,7 +663,7 @@ class DashboardButtonPainter:
                 DashboardButtonPainter.draw_gauge_arc(
                     painter,
                     arc_rect,
-                    fraction=fraction,
+                    fraction=gauge_fraction,
                     fill_color=fill_color,
                     track_color=track_color,
                 )
@@ -1531,11 +1532,13 @@ class DashboardButtonPainter:
 
         phase = getattr(button, 'sun_pulse_phase', 0.0)
         pulse = (1.0 + math.sin(phase * 2.0 * math.pi)) / 2.0
+        entry = getattr(button, '_sun_entry_fraction', 1.0)
 
         # Sun dot travelling along the arc
         if above and ratio is not None:
-            dot_x, dot_y = arc_point(ratio)
-            sin_t     = math.sin(ratio * math.pi)
+            animated_ratio = ratio * entry
+            dot_x, dot_y = arc_point(animated_ratio)
+            sin_t     = math.sin(animated_ratio * math.pi)
             dot_color = QColor(255, int(100 + 115 * sin_t), int(20 * (1.0 - sin_t)))
             base_r    = 5.0 + 2.0 * sin_t
             glow_c    = QColor(dot_color)
@@ -1549,7 +1552,8 @@ class DashboardButtonPainter:
 
         # Moon sphere travelling along the arc
         if not above and moon_ratio is not None:
-            moon_x, moon_y = arc_point(moon_ratio)
+            animated_moon = moon_ratio * entry
+            moon_x, moon_y = arc_point(animated_moon)
             moon_r = 5.0
             glow_c = QColor(200, 210, 230, int(15 + 15 * pulse))
             painter.setBrush(QBrush(glow_c))

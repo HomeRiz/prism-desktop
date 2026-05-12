@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "將專輯封面顯示為按鈕背景",
   "button_editor.animated_bg_toggle": "動態背景",
   "button_editor.animated_bg_tooltip": "在沒有專輯封面時啟用視差動態背景",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "自動化",
   "button_editor.type.camera": "攝影機",
   "button_editor.type.climate": "空調",

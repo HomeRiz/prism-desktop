@@ -408,6 +408,12 @@ class ButtonEditWidget(QWidget):
         self.form.addRow(t("button_editor.max_label"), self.sensor_max_spin)
         self.form.setRowVisible(self.sensor_max_spin, False)
 
+        self.entry_animation_toggle = ToggleSwitch(t("button_editor.entry_animation_toggle"))
+        self.entry_animation_toggle.setToolTip(t("button_editor.entry_animation_tooltip"))
+        self.entry_animation_toggle.setChecked(False)
+        self.form.addRow("", self.entry_animation_toggle)
+        self.form.setRowVisible(self.entry_animation_toggle, False)
+
         self.display_style_combo.currentIndexChanged.connect(self._on_display_style_changed)
 
         # Service (Switches only)
@@ -871,6 +877,9 @@ class ButtonEditWidget(QWidget):
         self.form.setRowVisible(self.sensor_min_spin, needs_range)
         self.form.setRowVisible(self.sensor_max_spin, needs_range)
 
+        needs_anim = is_sensor and style_idx in (1, 3)  # gauge=1, perimeter=3
+        self.form.setRowVisible(self.entry_animation_toggle, needs_anim)
+
         # Hide color palette for sensor with Normal display style
         if is_sensor:
             show_color = style_idx != 0
@@ -1253,6 +1262,7 @@ class ButtonEditWidget(QWidget):
         self.display_style_combo.setCurrentIndex(idx)
         self.sensor_min_spin.setValue(float(self.config.get('sensor_min', 0.0)))
         self.sensor_max_spin.setValue(float(self.config.get('sensor_max', 100.0)))
+        self.entry_animation_toggle.setChecked(self.config.get('entry_animation', False))
         
         # Camera settings (Removed - always stream)
         # camera_mode = self.config.get('camera_mode', 'picture')
@@ -1331,6 +1341,7 @@ class ButtonEditWidget(QWidget):
             new_config['display_style'] = ['normal', 'gauge', 'bar', 'perimeter'][self.display_style_combo.currentIndex()]
             new_config['sensor_min'] = self.sensor_min_spin.value()
             new_config['sensor_max'] = self.sensor_max_spin.value()
+            new_config['entry_animation'] = self.entry_animation_toggle.isChecked()
         
         if new_config['type'] == 'camera':
             new_config['camera_mode'] = 'stream'

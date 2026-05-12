@@ -174,6 +174,18 @@ class DashboardButton(QFrame):
         self.perimeter_anim.setDuration(800)
         self.perimeter_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
 
+        # Gauge entry animation
+        self._gauge_fraction = 0.0
+        self.gauge_anim = QPropertyAnimation(self, b"gauge_fraction")
+        self.gauge_anim.setDuration(800)
+        self.gauge_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
+        # Sun entity entry animation
+        self._sun_entry_fraction = 1.0
+        self.sun_entry_anim = QPropertyAnimation(self, b"sun_entry_fraction")
+        self.sun_entry_anim.setDuration(800)
+        self.sun_entry_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
+
         # Bounce animation on click
         self._bounce_offset = 0.0
         self.bounce_anim = QPropertyAnimation(self, b"bounce_offset")
@@ -289,7 +301,25 @@ class DashboardButton(QFrame):
         self.update()
 
     perimeter_fraction = pyqtProperty(float, get_perimeter_fraction, set_perimeter_fraction)
-    
+
+    def get_gauge_fraction(self):
+        return self._gauge_fraction
+
+    def set_gauge_fraction(self, val):
+        self._gauge_fraction = val
+        self.update()
+
+    gauge_fraction = pyqtProperty(float, get_gauge_fraction, set_gauge_fraction)
+
+    def get_sun_entry_fraction(self):
+        return self._sun_entry_fraction
+
+    def set_sun_entry_fraction(self, val):
+        self._sun_entry_fraction = val
+        self.update()
+
+    sun_entry_fraction = pyqtProperty(float, get_sun_entry_fraction, set_sun_entry_fraction)
+
     def get_bounce_offset(self):
         return self._bounce_offset
 
@@ -384,6 +414,30 @@ class DashboardButton(QFrame):
         
         self.update_content()
     
+    def play_entry_animation(self):
+        """Sweep gauge/perimeter/sun from zero to their current value."""
+        style = self.config.get('display_style', '')
+        btn_type = self.config.get('type', '')
+        if self.config.get('entry_animation', False):
+            if style == 'gauge' and self._sensor_fraction is not None:
+                self.gauge_anim.stop()
+                self._gauge_fraction = 0.0
+                self.gauge_anim.setStartValue(0.0)
+                self.gauge_anim.setEndValue(self._sensor_fraction)
+                self.gauge_anim.start()
+            elif style == 'perimeter' and self._sensor_fraction is not None:
+                self.perimeter_anim.stop()
+                self._perimeter_fraction = 0.0
+                self.perimeter_anim.setStartValue(0.0)
+                self.perimeter_anim.setEndValue(self._sensor_fraction)
+                self.perimeter_anim.start()
+        if btn_type == 'sun':
+            self.sun_entry_anim.stop()
+            self._sun_entry_fraction = 0.0
+            self.sun_entry_anim.setStartValue(0.0)
+            self.sun_entry_anim.setEndValue(1.0)
+            self.sun_entry_anim.start()
+
     def update_content(self):
         """Update button content from config."""
         fp = (
@@ -655,6 +709,10 @@ class DashboardButton(QFrame):
             self.perimeter_anim.setStartValue(self._perimeter_fraction)
             self.perimeter_anim.setEndValue(self._sensor_fraction)
             self.perimeter_anim.start()
+
+        if style == 'gauge' and self._sensor_fraction is not None:
+            if self.gauge_anim.state() != self.gauge_anim.State.Running:
+                self._gauge_fraction = self._sensor_fraction
 
         self.value_label.setText(self._sensor_text)
         self.name_label.setText(label)

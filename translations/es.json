@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "Muestra la portada del álbum como fondo del botón",
   "button_editor.animated_bg_toggle": "Fondo animado",
   "button_editor.animated_bg_tooltip": "Activa el fondo parallax animado cuando no se muestra portada",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "Automatización",
   "button_editor.type.camera": "Cámara",
   "button_editor.type.climate": "Climatización",

@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "Zeigt das Albumcover als Schaltflächenhintergrund an",
   "button_editor.animated_bg_toggle": "Animierter Hintergrund",
   "button_editor.animated_bg_tooltip": "Aktiviert den animierten Parallax-Hintergrund, wenn kein Albumcover angezeigt wird",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "Automatisierung",
   "button_editor.type.camera": "Kamera",
   "button_editor.type.climate": "Klimaanlage",

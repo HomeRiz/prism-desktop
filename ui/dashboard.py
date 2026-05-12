@@ -1276,6 +1276,13 @@ class Dashboard(QWidget):
         self.btn_page_indicator.set_page(new_page)
         self.grid_manager.set_buttons(self._all_button_configs, update_height=False)
         self.page_change_requested.emit(new_page)
+        self._trigger_button_entry_animations()
+
+    def _trigger_button_entry_animations(self):
+        """Fire entry animations on all currently visible gauge/perimeter/sun buttons."""
+        for btn in self.buttons:
+            if btn.isVisible():
+                btn.play_entry_animation()
 
 
 
@@ -1494,6 +1501,8 @@ class Dashboard(QWidget):
         self.border_anim.setStartValue(0.0)
         self.border_anim.setEndValue(1.0)
         self.border_anim.start()
+
+        self._trigger_button_entry_animations()
     
     def toggle(self, tray_geometry: QRect | None = None):
         if self.isVisible() and self.windowOpacity() > 0.1:

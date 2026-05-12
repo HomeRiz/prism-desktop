@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "Mostra la copertina dell'album come sfondo del pulsante",
   "button_editor.animated_bg_toggle": "Sfondo animato",
   "button_editor.animated_bg_tooltip": "Attiva lo sfondo parallasse animato quando non è presente una copertina",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "Automazione",
   "button_editor.type.camera": "Telecamera",
   "button_editor.type.climate": "Climatizzazione",

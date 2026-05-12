@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "アルバムアートをボタンの背景として表示します",
   "button_editor.animated_bg_toggle": "アニメーション背景",
   "button_editor.animated_bg_tooltip": "アルバムアートがない場合にパララックスアニメーション背景を有効にします",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "オートメーション",
   "button_editor.type.camera": "カメラ",
   "button_editor.type.climate": "空調",

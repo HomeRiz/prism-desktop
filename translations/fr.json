@@ -96,6 +96,8 @@
   "button_editor.album_art_tooltip": "Affiche la pochette de l'album en fond du bouton",
   "button_editor.animated_bg_toggle": "Fond animé",
   "button_editor.animated_bg_tooltip": "Active le fond parallaxe animé quand aucune pochette n'est affichée",
+  "button_editor.entry_animation_toggle": "Animate on open",
+  "button_editor.entry_animation_tooltip": "Sweep the arc from zero every time the dashboard opens or you switch pages",
   "button_editor.type.automation": "Automatisation",
   "button_editor.type.camera": "Caméra",
   "button_editor.type.climate": "Climatisation",
