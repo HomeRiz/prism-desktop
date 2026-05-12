@@ -32,7 +32,6 @@ logging.basicConfig(
     ]
 )
 
-VERSION = "1.4.3"
 TOGGLE_ARG = "--toggle"
 WELCOME_ARG = "--welcome"
 
