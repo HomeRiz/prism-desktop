@@ -15,7 +15,7 @@ from PyQt6.QtWidgets import (
     QFrame, QColorDialog, QApplication
 )
 from ui.widgets.toggle_switch import ToggleSwitch
-from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer, QRectF, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import Qt, pyqtSignal, pyqtProperty, pyqtSlot, QUrl, QTimer, QRectF, QPropertyAnimation, QEasingCurve, QThread
 from PyQt6.QtGui import QFont, QColor, QDesktopServices, QIcon, QPixmap, QConicalGradient, QPen, QBrush, QPainter
 from core.utils import SYSTEM_FONT
 from core.localization_manager import t, current_language, supported_languages, init_localization
@@ -113,6 +113,8 @@ class SettingsWidget(QWidget):
         
         self._test_thread: Optional[ConnectionTestThread] = None
         self._update_thread = None
+        self._geoclue_thread = None
+        self._pin_window = False
 
         self.setup_ui()
         self.load_config()
@@ -454,9 +456,6 @@ class SettingsWidget(QWidget):
         if sys.platform.startswith('linux'):
             self.glass_ui_check.setVisible(False)
 
-        self.pin_window_check = ToggleSwitch(t("settings.appearance.pin_toggle"))
-        self.pin_window_check.setToolTip(t("settings.appearance.pin_tooltip"))
-
         self.form.addRow("", self.show_dimming_check)
         self.form.addRow("", self.glass_ui_check)
         
@@ -634,7 +633,7 @@ class SettingsWidget(QWidget):
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
         self.glass_ui_check.setChecked(app.get('glass_ui', False) and not sys.platform.startswith('linux'))
         pinned = app.get('pin_window', False)
-        self.pin_window_check.setChecked(pinned)
+        self._pin_window = pinned
         self.pin_btn.set_effect(app.get('border_effect', 'Rainbow'))
         self.pin_btn.setChecked(pinned)
         pages = app.get('pages', 3)
@@ -685,7 +684,7 @@ class SettingsWidget(QWidget):
             'button_style': {0: 'gradient', 1: 'flat'}.get(self.button_style_combo.currentIndex(), 'gradient'),
             'show_dimming': self.show_dimming_check.isChecked(),
             'glass_ui': self.glass_ui_check.isChecked(),
-            'pin_window': self.pin_window_check.isChecked(),
+            'pin_window': self._pin_window,
             'pages': self.pages_combo.currentIndex() + 1,
             'language': new_language,
         })
@@ -715,23 +714,28 @@ class SettingsWidget(QWidget):
         """Check GeoClue2 availability on Linux and create .desktop file."""
         import asyncio
 
-        async def _check():
-            available = await is_geoclue2_available()
+        class _Worker(QThread):
+            done = pyqtSignal(bool, str)
+
+            def run(self):
+                available = asyncio.run(is_geoclue2_available())
+                cmd = "" if available else get_geoclue2_install_hint(get_distro_info()["id"])
+                self.done.emit(available, cmd)
+
+        def _on_done(available, cmd):
             if not available:
-                distro = get_distro_info()
-                install_cmd = get_geoclue2_install_hint(distro["id"])
-                # Revert toggle — location won't work without GeoClue2
                 self.location_check.setChecked(False)
                 self.config.setdefault('mobile_app', {})['location_enabled'] = False
                 dashboard = self.window()
                 if hasattr(dashboard, 'show_toast'):
                     from ui.notifications import notify_geoclue2_missing
-                    notify_geoclue2_missing(dashboard, install_cmd)
-                return
-            # GeoClue2 is available — ensure .desktop file exists
-            ensure_desktop_file()
+                    notify_geoclue2_missing(dashboard, cmd)
+            else:
+                ensure_desktop_file()
 
-        asyncio.ensure_future(_check())
+        self._geoclue_thread = _Worker()
+        self._geoclue_thread.done.connect(_on_done)
+        self._geoclue_thread.start()
 
     # --- Logic ---
 
@@ -748,7 +752,7 @@ class SettingsWidget(QWidget):
 
 
     def _on_pin_toggled(self, checked: bool):
-        self.pin_window_check.setChecked(checked)
+        self._pin_window = checked
         self.config.setdefault('appearance', {})['pin_window'] = checked
 
     def toggle_recording(self, checked):
@@ -952,7 +956,7 @@ class SettingsWidget(QWidget):
         self.update_label.setStyleSheet("color: #FF8C00; font-weight: bold; font-size: 11px;")
 
         self.update_btn.setText(t("settings.support.download_btn"))
-        self.update_btn.disconnect()
+        self.update_btn.clicked.disconnect()
         self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")))
 
     @pyqtSlot()
@@ -975,4 +979,7 @@ class SettingsWidget(QWidget):
         if self._update_thread and self._update_thread.isRunning():
             self._update_thread.quit()
             self._update_thread.wait(500)
+        if self._geoclue_thread and self._geoclue_thread.isRunning():
+            self._geoclue_thread.quit()
+            self._geoclue_thread.wait(500)
 
