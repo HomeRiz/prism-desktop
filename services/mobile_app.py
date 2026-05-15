@@ -22,12 +22,11 @@ APP_ID = "io.prism.desktop"
 # To add a new sensor: append a dict here — no other changes needed.
 SENSORS = [
     {
-        "type": "binary_sensor",
+        "type": "sensor",
         "unique_id": "logged_in",
         "name": "Logged In",
-        "device_class": "connectivity",
         "icon": "mdi:account-check",
-        "state": False,  # initial/default state sent at registration — not a mutable field
+        "state": "logged-out",  # initial/default state sent at registration — not a mutable field
     },
 ]
 

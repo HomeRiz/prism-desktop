@@ -497,7 +497,7 @@ class PrismDesktopApp(QObject):
         ha_url = self.config.get('home_assistant', {}).get('url', '')
         if not (webhook_id and ha_url):
             return
-        states = {s["unique_id"]: value for s in MOBILE_APP_SENSORS}
+        states = {s["unique_id"]: ("logged-in" if value else "logged-out") for s in MOBILE_APP_SENSORS}
         url = ha_url.rstrip('/') + f'/api/webhook/{webhook_id}'
         payload = {"type": "update_sensor_states", "data": build_sensor_state_payload(states)}
         try:
@@ -957,7 +957,7 @@ class PrismDesktopApp(QObject):
         if webhook_id:
             ha_url = ha_config.get('url', '')
             await register_sensors(ha_url, webhook_id)
-            await update_sensor_states(ha_url, webhook_id, {"logged_in": True})
+            await update_sensor_states(ha_url, webhook_id, {"logged_in": "logged-in"})
 
         # Start location loop if enabled
         if self.config.get('mobile_app', {}).get('location_enabled', False):
@@ -968,7 +968,7 @@ class PrismDesktopApp(QObject):
         webhook_id = self.config.get('mobile_app', {}).get('webhook_id', '')
         ha_url = self.config.get('home_assistant', {}).get('url', '')
         if webhook_id and ha_url:
-            await update_sensor_states(ha_url, webhook_id, {"logged_in": value})
+            await update_sensor_states(ha_url, webhook_id, {"logged_in": "logged-in" if value else "logged-out"})
 
     def _start_location_loop(self):
         """Start (or restart) the periodic location update task."""
