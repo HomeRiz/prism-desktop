@@ -1009,7 +1009,8 @@ class DashboardButton(QFrame):
         self._media_state = {}
         self._album_art = None
         self._last_camera_pixmap = None
-        
+        self._cached_display_pixmap = None
+
         # Stop animations and reset counters
         self.anim.stop()
         self._anim_progress = 0.0

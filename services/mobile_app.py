@@ -32,8 +32,8 @@ SENSORS = [
 ]
 
 APP_NAME = "Prism Desktop"
-MANUFACTURER = "Prism"
-MODEL = "Desktop"
+MANUFACTURER = "lasselian"
+MODEL = "Prism Desktop"
 OS_VERSION = platform.version()
 
 
