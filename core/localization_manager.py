@@ -15,6 +15,7 @@ _SUPPORTED_LANGUAGES = {
     "fi": "Suomi",
     "da": "Dansk",
     "pt": "Português",
+    "sr": "Srpski",
     "zh": "中文（简体）",
     "zh-TW": "中文（繁體）",
     "ja": "日本語",
