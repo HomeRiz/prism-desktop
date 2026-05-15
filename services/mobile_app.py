@@ -17,6 +17,20 @@ logger = logging.getLogger(__name__)
 
 # Prism's app identifier (stable — must not change between versions)
 APP_ID = "io.prism.desktop"
+
+# Sensors exposed under the Prism Desktop device in HA.
+# To add a new sensor: append a dict here — no other changes needed.
+SENSORS = [
+    {
+        "type": "binary_sensor",
+        "unique_id": "logged_in",
+        "name": "Logged In",
+        "device_class": "connectivity",
+        "icon": "mdi:account-check",
+        "state": False,  # initial/default state sent at registration — not a mutable field
+    },
+]
+
 APP_NAME = "Prism Desktop"
 MANUFACTURER = "Prism"
 MODEL = "Desktop"
@@ -163,6 +177,62 @@ async def send_location_update(ha_url: str, webhook_id: str, location: dict) -> 
         return False
     except Exception as e:
         logger.warning(f"[MobileApp] Location update error: {e}")
+        return False
+
+
+async def register_sensors(ha_url: str, webhook_id: str) -> None:
+    """
+    Register all sensors in SENSORS with the HA mobile app webhook.
+    Idempotent — HA accepts re-registration silently.
+    """
+    url = ha_url.rstrip("/") + f"/api/webhook/{webhook_id}"
+    try:
+        async with aiohttp.ClientSession() as session:
+            for sensor in SENSORS:
+                payload = {"type": "register_sensor", "data": sensor}
+                async with session.post(url, json=payload, timeout=10) as resp:
+                    if resp.status in (200, 201):
+                        logger.info(f"[MobileApp] Sensor '{sensor['unique_id']}' registered (HTTP {resp.status})")
+                    else:
+                        logger.warning(f"[MobileApp] Sensor '{sensor['unique_id']}' registration returned HTTP {resp.status}")
+    except Exception as e:
+        logger.warning(f"[MobileApp] Sensor registration error (non-critical): {e}")
+
+
+def build_sensor_state_payload(states: dict) -> list:
+    """Build the 'data' list for an update_sensor_states webhook call from a {unique_id: value} dict."""
+    sensor_type_map = {s["unique_id"]: s["type"] for s in SENSORS}
+    return [
+        {"type": sensor_type_map[uid], "unique_id": uid, "state": val}
+        for uid, val in states.items()
+        if uid in sensor_type_map
+    ]
+
+
+async def update_sensor_states(ha_url: str, webhook_id: str, states: dict) -> bool:
+    """
+    Push sensor state updates to HA.
+
+    states: {unique_id: new_state_value}, e.g. {"logged_in": True}
+    Returns True on success.
+    """
+    data = build_sensor_state_payload(states)
+    if not data:
+        return False
+
+    url = ha_url.rstrip("/") + f"/api/webhook/{webhook_id}"
+    payload = {"type": "update_sensor_states", "data": data}
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(url, json=payload, timeout=10) as resp:
+                if resp.status in (200, 201):
+                    logger.debug(f"[MobileApp] Sensor states updated: {states}")
+                    return True
+                else:
+                    logger.warning(f"[MobileApp] Sensor state update returned HTTP {resp.status}")
+                    return False
+    except Exception as e:
+        logger.warning(f"[MobileApp] Sensor state update error: {e}")
         return False
 
 

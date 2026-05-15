@@ -14,6 +14,7 @@ from typing import Optional
 import logging
 import copy
 import platform
+import requests
 
 from services.local_ipc import send_local_command
 
@@ -57,7 +58,7 @@ from ui.tray_manager import TrayManager
 from services.notifications import NotificationManager
 from services.input_manager import InputManager
 from services.local_ipc import LocalCommandServer
-from services.mobile_app import register_mobile_app, send_location_update
+from services.mobile_app import register_mobile_app, send_location_update, register_sensors, update_sensor_states, build_sensor_state_payload, SENSORS as MOBILE_APP_SENSORS
 from services.location_manager import get_location
 from ui.icons import load_mdi_font
 from services.update_checker import UpdateCheckerThread
@@ -483,11 +484,26 @@ class PrismDesktopApp(QObject):
     @pyqtSlot()
     def _quit(self):
         """Quit the application."""
+        self._push_sensor_state_sync(False)
         self.stop_all_threads()
         if self.local_command_server:
             self.local_command_server.close()
         self._remove_pid_file()
         QApplication.instance().quit()
+
+    def _push_sensor_state_sync(self, value: bool):
+        """Synchronous sensor state push for use at shutdown (event loop may be closing)."""
+        webhook_id = self.config.get('mobile_app', {}).get('webhook_id', '')
+        ha_url = self.config.get('home_assistant', {}).get('url', '')
+        if not (webhook_id and ha_url):
+            return
+        states = {s["unique_id"]: value for s in MOBILE_APP_SENSORS}
+        url = ha_url.rstrip('/') + f'/api/webhook/{webhook_id}'
+        payload = {"type": "update_sensor_states", "data": build_sensor_state_payload(states)}
+        try:
+            requests.post(url, json=payload, timeout=3)
+        except Exception:
+            pass
     
     @pyqtSlot(dict)
     def on_settings_saved(self, new_config: dict):
@@ -937,10 +953,23 @@ class PrismDesktopApp(QObject):
                 self.stop_websocket()
                 self.start_websocket()
 
+        # Register sensors and push initial state
+        if webhook_id:
+            ha_url = ha_config.get('url', '')
+            await register_sensors(ha_url, webhook_id)
+            await update_sensor_states(ha_url, webhook_id, {"logged_in": True})
+
         # Start location loop if enabled
         if self.config.get('mobile_app', {}).get('location_enabled', False):
             self._start_location_loop()
-        
+
+    async def _push_sensor_state(self, value: bool):
+        """Push the logged_in sensor state to HA. Best-effort — errors are swallowed."""
+        webhook_id = self.config.get('mobile_app', {}).get('webhook_id', '')
+        ha_url = self.config.get('home_assistant', {}).get('url', '')
+        if webhook_id and ha_url:
+            await update_sensor_states(ha_url, webhook_id, {"logged_in": value})
+
     def _start_location_loop(self):
         """Start (or restart) the periodic location update task."""
         if self._location_task and not self._location_task.done():
@@ -972,7 +1001,8 @@ class PrismDesktopApp(QObject):
     @pyqtSlot()
     def on_ws_disconnected(self):
         print("WS Disconnected")
-        
+        _create_task_safe(self._push_sensor_state(False))
+
     @pyqtSlot(str)
     def on_ws_error(self, error):
         print(f"WS Error: {error}")
