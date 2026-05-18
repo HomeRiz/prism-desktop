@@ -5,6 +5,7 @@ Handles global keyboard shortcuts and mouse button triggers using pynput.
 
 from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTimer
 from pynput import keyboard, mouse
+import re
 import threading
 
 _WAYLAND_PORTAL_AVAILABLE = False
@@ -148,6 +149,12 @@ class InputManager(QObject):
                 print(f"InputManager: Wayland portal shortcut setup failed, falling back to pynput: {e}")
                 self._wayland_shortcut = None
 
+        # VK-based keys like <102> (numpad with modifiers) cannot be reliably matched
+        # by GlobalHotKeys on all platforms — use a manual listener instead.
+        if re.search(r'<\d+>', shortcut_str):
+            self._start_vk_keyboard_listener(shortcut_str)
+            return
+
         try:
             # Pynput GlobalHotKeys is robust
             self._keyboard_listener = keyboard.GlobalHotKeys({
@@ -156,6 +163,63 @@ class InputManager(QObject):
             self._keyboard_listener.start()
         except Exception as e:
             print(f"InputManager: Invalid hotkey '{shortcut_str}': {e}")
+
+    def _start_vk_keyboard_listener(self, shortcut_str):
+        """Manual listener for hotkeys containing raw VK codes like <102>.
+        GlobalHotKeys can misidentify these on some Linux/X11 setups because
+        modifier keys suppress the character output during recording, yielding a
+        VK-only KeyCode that may not round-trip through GlobalHotKeys matching."""
+        required_mods = set()
+        target_vk = None
+
+        for part in shortcut_str.split('+'):
+            part = part.strip()
+            if part == '<ctrl>':
+                required_mods.add('ctrl')
+            elif part == '<alt>':
+                required_mods.add('alt')
+            elif part == '<shift>':
+                required_mods.add('shift')
+            elif part == '<cmd>':
+                required_mods.add('cmd')
+            else:
+                m = re.fullmatch(r'<(\d+)>', part)
+                if m:
+                    target_vk = int(m.group(1))
+
+        if target_vk is None:
+            print(f"InputManager: Could not parse VK from hotkey '{shortcut_str}'")
+            return
+
+        print(f"InputManager: VK-based listener — mods={required_mods}, vk={target_vk}")
+        pressed_mods = set()
+
+        def _mod_name(key):
+            name = getattr(key, 'name', None) or ''
+            if name.startswith('ctrl'): return 'ctrl'
+            if name.startswith('alt'): return 'alt'
+            if name.startswith('shift'): return 'shift'
+            if name.startswith('cmd') or name == 'win': return 'cmd'
+            return None
+
+        def on_press(key):
+            mod = _mod_name(key)
+            if mod:
+                pressed_mods.add(mod)
+            else:
+                vk = getattr(key, 'vk', None)
+                if vk == target_vk and pressed_mods >= required_mods:
+                    self._on_trigger()
+
+        def on_release(key):
+            mod = _mod_name(key)
+            if mod:
+                pressed_mods.discard(mod)
+
+        self._keyboard_listener = keyboard.Listener(
+            on_press=on_press, on_release=on_release
+        )
+        self._keyboard_listener.start()
 
     def _start_mouse_listener(self):
         """Start listener for specific mouse button."""
