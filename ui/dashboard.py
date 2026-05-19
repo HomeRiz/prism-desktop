@@ -1207,12 +1207,20 @@ class Dashboard(QWidget):
                 
             return False
 
-        # 2. Special keys (<esc>, <f1>, etc)
-        # Strip <>
+        # 2. Special keys (<esc>, <f1>, etc) and raw VK codes (<102>)
         if target_key.startswith('<') and target_key.endswith('>'):
             clean_key = target_key[1:-1].lower()
-            
-            # Map common keys
+
+            # Numeric VK code recorded from a key whose char was suppressed by
+            # modifiers (e.g. numpad keys). Compare against the platform native VK.
+            try:
+                target_vk = int(clean_key)
+                if event.nativeVirtualKey() == target_vk:
+                    return True
+            except ValueError:
+                pass
+
+            # Map common named keys
             map_special = {
                 'esc': Qt.Key.Key_Escape,
                 'space': Qt.Key.Key_Space,
@@ -1232,10 +1240,10 @@ class Dashboard(QWidget):
                 'page_up': Qt.Key.Key_PageUp,
                 'page_down': Qt.Key.Key_PageDown
             }
-            
+
             if map_special.get(clean_key) == key:
                 return True
-                
+
         return False
     
     def set_buttons(self, configs: list[dict], appearance_config: dict = None, update_height=True):
