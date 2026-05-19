@@ -30,12 +30,12 @@ class InputManager(QObject):
     Manages global input listeners for keyboard and mouse.
     executes in its own thread to avoid blocking GUI.
     """
-
+    
     triggered = pyqtSignal()
     recorded = pyqtSignal(dict)  # {type: 'keyboard'|'mouse', value: str}
     recording_started = pyqtSignal()
     recording_stopped = pyqtSignal()
-
+    
     def __init__(self):
         super().__init__()
         self._keyboard_listener = None
@@ -44,7 +44,6 @@ class InputManager(QObject):
         self._is_recording = False
         self._pressed_keys = set()
         self._wayland_shortcut = None
-        self._btn_shortcut_handler = None
         
         # Health check timer - detect silently dead listener threads
         self._health_timer = QTimer(self)
@@ -62,13 +61,6 @@ class InputManager(QObject):
             self._mouse_map[mouse.Button.x1] = "Button.x1"  # Back
         if hasattr(mouse.Button, 'x2'):
             self._mouse_map[mouse.Button.x2] = "Button.x2"  # Forward
-
-    @property
-    def has_keyboard_listener(self) -> bool:
-        return self._keyboard_listener is not None
-
-    def set_button_shortcut_handler(self, handler):
-        self._btn_shortcut_handler = handler
 
     def update_shortcut(self, config: dict):
         """Update the active shortcut from config."""
@@ -94,7 +86,9 @@ class InputManager(QObject):
         self._health_timer.start()
     
     def restore_shortcut(self):
-        self.stop_listening()
+        """Restore the previously configured shortcut listener.
+        Call this after recording ends or is cancelled to bring back the hotkey."""
+        self.stop_listening()  # emits recording_stopped if was recording
         if not self._current_shortcut:
             return
         print(f"InputManager: Restoring shortcut {self._current_shortcut}")
@@ -161,13 +155,28 @@ class InputManager(QObject):
                 print(f"InputManager: Wayland portal shortcut setup failed, falling back to pynput: {e}")
                 self._wayland_shortcut = None
 
-        self._start_unified_listener(shortcut_str)
+        # VK-based keys like <102> (numpad with modifiers) cannot be reliably matched
+        # by GlobalHotKeys on all platforms — use a manual listener instead.
+        if re.search(r'<\d+>', shortcut_str):
+            self._start_vk_keyboard_listener(shortcut_str)
+            return
 
-    def _start_unified_listener(self, shortcut_str):
+        try:
+            # Pynput GlobalHotKeys is robust
+            self._keyboard_listener = keyboard.GlobalHotKeys({
+                shortcut_str: self._on_trigger
+            })
+            self._keyboard_listener.start()
+        except Exception as e:
+            print(f"InputManager: Invalid hotkey '{shortcut_str}': {e}")
+
+    def _start_vk_keyboard_listener(self, shortcut_str):
+        """Manual listener for hotkeys containing raw VK codes like <102>.
+        GlobalHotKeys can misidentify these on some Linux/X11 setups because
+        modifier keys suppress the character output during recording, yielding a
+        VK-only KeyCode that may not round-trip through GlobalHotKeys matching."""
         required_mods = set()
         target_vk = None
-        target_name = None
-        target_char = None
 
         for part in shortcut_str.split('+'):
             part = part.strip()
@@ -183,12 +192,12 @@ class InputManager(QObject):
                 m = re.fullmatch(r'<(\d+)>', part)
                 if m:
                     target_vk = int(m.group(1))
-                elif part.startswith('<') and part.endswith('>'):
-                    target_name = part[1:-1]
-                elif len(part) == 1:
-                    target_char = part.lower()
 
-        print(f"InputManager: Listener — mods={required_mods}, vk={target_vk}, name={target_name}, char={target_char}")
+        if target_vk is None:
+            print(f"InputManager: Could not parse VK from hotkey '{shortcut_str}'")
+            return
+
+        print(f"InputManager: VK-based listener — mods={required_mods}, vk={target_vk}")
         pressed_mods = set()
 
         def _mod_name(key):
@@ -204,38 +213,18 @@ class InputManager(QObject):
             if mod:
                 pressed_mods.add(mod)
             else:
-                if pressed_mods >= required_mods:
-                    vk = getattr(key, 'vk', None)
-                    triggered = False
-                    if target_vk is not None and vk == target_vk:
-                        triggered = True
-                    elif target_name is not None and getattr(key, 'name', None) == target_name:
-                        triggered = True
-                    elif target_char is not None:
-                        char = getattr(key, 'char', None)
-                        if char and char.lower() == target_char:
-                            triggered = True
-                        elif vk and (48 <= vk <= 57 or 65 <= vk <= 90):
-                            try:
-                                if chr(vk).lower() == target_char:
-                                    triggered = True
-                            except Exception:
-                                pass
-                    if triggered:
-                        self._on_trigger()
-            handler = self._btn_shortcut_handler
-            if handler:
-                handler._on_press(key)
+                vk = getattr(key, 'vk', None)
+                if vk == target_vk and pressed_mods >= required_mods:
+                    self._on_trigger()
 
         def on_release(key):
             mod = _mod_name(key)
             if mod:
                 pressed_mods.discard(mod)
-            handler = self._btn_shortcut_handler
-            if handler:
-                handler._on_release(key)
 
-        self._keyboard_listener = keyboard.Listener(on_press=on_press, on_release=on_release)
+        self._keyboard_listener = keyboard.Listener(
+            on_press=on_press, on_release=on_release
+        )
         self._keyboard_listener.start()
 
     def _start_mouse_listener(self):
@@ -446,36 +435,18 @@ class ButtonShortcutManager(QObject):
         self._shortcuts = {}   # shortcut_str -> button config dict
         self._pressed_mods = set()
         self._paused = False
-        self._using_shared_listener = False
-        self._input_manager_ref = None
 
     def update_shortcuts(self, button_configs: list):
         """Re-register all enabled button shortcuts from the given config list."""
-        if not self._using_shared_listener:
-            self._stop_listener()
-        self._pressed_mods.clear()
+        self._stop_listener()
         self._shortcuts = {
             sc['value']: cfg
             for cfg in button_configs
             if (sc := cfg.get('custom_shortcut', {})).get('enabled') and sc.get('value')
         }
-        if not self._using_shared_listener and self._shortcuts:
+        if self._shortcuts:
             self._start_listener()
         print(f"ButtonShortcutManager: {len(self._shortcuts)} active shortcut(s): {list(self._shortcuts.keys())}")
-
-    def register_with_input_manager(self, input_manager):
-        self._stop_listener()
-        self._using_shared_listener = True
-        self._input_manager_ref = input_manager
-        input_manager.set_button_shortcut_handler(self)
-        self._pressed_mods.clear()
-
-    def unregister_from_input_manager(self):
-        if self._input_manager_ref:
-            self._input_manager_ref.set_button_shortcut_handler(None)
-            self._input_manager_ref = None
-        self._using_shared_listener = False
-        self._pressed_mods.clear()
 
     def set_paused(self, paused: bool):
         self._paused = paused
@@ -483,10 +454,7 @@ class ButtonShortcutManager(QObject):
             self._pressed_mods.clear()
 
     def stop(self):
-        if self._using_shared_listener:
-            self.unregister_from_input_manager()
-        else:
-            self._stop_listener()
+        self._stop_listener()
 
     # --- Internal ---
 

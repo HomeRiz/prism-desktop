@@ -279,13 +279,8 @@ class PrismDesktopApp(QObject):
         self.config_manager.save_config()
 
     def _update_button_shortcuts(self):
+        """Sync ButtonShortcutManager with current button configs."""
         buttons = self.config.get('buttons', [])
-        if self.input_manager.has_keyboard_listener:
-            if not self.button_shortcut_manager._using_shared_listener:
-                self.button_shortcut_manager.register_with_input_manager(self.input_manager)
-        else:
-            if self.button_shortcut_manager._using_shared_listener:
-                self.button_shortcut_manager.unregister_from_input_manager()
         self.button_shortcut_manager.update_shortcuts(buttons)
 
     def _on_button_shortcut_triggered(self, config: dict):

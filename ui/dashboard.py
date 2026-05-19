@@ -866,6 +866,7 @@ class Dashboard(QWidget):
             Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        self.setAttribute(Qt.WidgetAttribute.WA_ShowWithoutActivating)
         
         # Clear existing buttons
         self.buttons.clear()
@@ -1472,7 +1473,9 @@ class Dashboard(QWidget):
         """Position and show the dashboard near the system tray."""
         screen = self._screen_for_tray_geometry(tray_geometry)
         if not screen:
+            self._ignore_focus_loss = True
             self.show()
+            QTimer.singleShot(300, self._activate_after_show)
             return
         
         self.refresh_tray_anchor(tray_geometry=tray_geometry)
@@ -1492,10 +1495,12 @@ class Dashboard(QWidget):
         else:
             self.move(self._target_pos)
         
-        # Ensure we are visible before animating
+        # Prevent focus-loss logic from closing the window while it's fading in
+        self._ignore_focus_loss = True
+
+        # Show without activating — activation happens after animation completes
         super().show()
-        self.activateWindow()
-        
+
         # Start Entrance Animation
         self.anim.stop()
         self.anim.setDuration(250) # Fast, snappy
@@ -1566,8 +1571,13 @@ class Dashboard(QWidget):
             self._glass_refresh_timer.stop()
             self._set_capture_exclusion(False)
             super().hide()
-        elif self._glass_ui and self._anim_progress >= 0.99:
-            if not self._glass_refresh_timer.isActive():
+        elif self._anim_progress >= 0.99:
+            # Activate only after the window is fully visible — prevents focus theft
+            # at opacity 0 which causes the previous window's title bar to flash.
+            self._ignore_focus_loss = False
+            self.activateWindow()
+            self.setFocus()
+            if self._glass_ui and not self._glass_refresh_timer.isActive():
                 self._glass_refresh_timer.start()
 
     def focusOutEvent(self, event):
@@ -1629,12 +1639,14 @@ class Dashboard(QWidget):
     glow_progress = pyqtProperty(float, get_glow_progress, set_glow_progress)
 
     def showEvent(self, event):
-        """Standard show event."""
         super().showEvent(event)
-        # We handle animation in show_near_tray usually, but for safety:
+
+    def _activate_after_show(self):
+        """Activate the window after a no-animation show (fallback path)."""
+        self._ignore_focus_loss = False
         self.activateWindow()
         self.setFocus()
-    
+
     # ============ VIEW SWITCHING (Grid <-> Settings) ============
     
     def _init_settings_widget(self, config: dict, input_manager=None):
