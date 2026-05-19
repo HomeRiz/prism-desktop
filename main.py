@@ -16,6 +16,9 @@ import copy
 import platform
 import requests
 
+from core.utils import configure_ssl
+configure_ssl()
+
 from services.local_ipc import send_local_command
 
 # Force XWayland on Wayland sessions — Qt's QWidget.move() is silently ignored

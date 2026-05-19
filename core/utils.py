@@ -3,6 +3,32 @@ import os
 import platform
 from pathlib import Path
 
+_LINUX_CA_BUNDLES = [
+    "/etc/ssl/certs/ca-certificates.crt",  # Debian / Ubuntu / Arch
+    "/etc/pki/tls/certs/ca-bundle.crt",    # RHEL / CentOS / Fedora
+    "/etc/ssl/ca-bundle.pem",              # openSUSE
+    "/etc/pki/tls/cert.pem",              # Amazon Linux
+]
+
+def configure_ssl() -> None:
+    """Prefer the system CA bundle on Linux to avoid stale bundled certifi certs."""
+    if platform.system() != "Linux":
+        return
+    # Find the first available system CA bundle
+    system_bundle = os.environ.get("SSL_CERT_FILE")
+    if not system_bundle:
+        for path in _LINUX_CA_BUNDLES:
+            if Path(path).exists():
+                system_bundle = path
+                break
+    if not system_bundle:
+        return
+    # ssl module (used by aiohttp/websockets)
+    os.environ.setdefault("SSL_CERT_FILE", system_bundle)
+    # requests / urllib3
+    os.environ.setdefault("REQUESTS_CA_BUNDLE", system_bundle)
+
+
 # Cross-platform system font
 def get_system_font() -> str:
     """Get the appropriate system UI font for the current platform."""
