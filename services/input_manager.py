@@ -4,10 +4,9 @@ Handles global keyboard shortcuts and mouse button triggers using pynput.
 Includes ButtonShortcutManager for per-button global shortcuts active while in tray.
 """
 
-from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTimer
+from PyQt6.QtCore import QObject, pyqtSignal, QTimer
 from pynput import keyboard, mouse
 import re
-import threading
 
 _WAYLAND_PORTAL_AVAILABLE = False
 try:
