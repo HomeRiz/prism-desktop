@@ -431,7 +431,7 @@ class DashboardButton(QFrame):
                 self.perimeter_anim.setStartValue(0.0)
                 self.perimeter_anim.setEndValue(self._sensor_fraction)
                 self.perimeter_anim.start()
-        if btn_type == 'sun':
+        if btn_type == 'sun' and self.config.get('entry_animation', True):
             self.sun_entry_anim.stop()
             self._sun_entry_fraction = 0.0
             self.sun_entry_anim.setStartValue(0.0)

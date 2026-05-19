@@ -969,6 +969,12 @@ class ButtonEditWidget(QWidget):
         if hasattr(self, 'icon_label'):
             self.icon_label.setVisible(show_icon)
 
+        # Sun: show the animate-on-open toggle (sensor gauge/perimeter are handled by _on_display_style_changed)
+        if is_sun:
+            self.form.setRowVisible(self.entry_animation_toggle, True)
+        elif current_type != 'widget':
+            self.form.setRowVisible(self.entry_animation_toggle, False)
+
         # Color Option Visibility
         # Remove for Weather, Camera, and Sun (dot color is position-based)
         show_color = current_type not in ['weather', 'camera', 'sun']
@@ -1343,6 +1349,9 @@ class ButtonEditWidget(QWidget):
             new_config['sensor_max'] = self.sensor_max_spin.value()
             new_config['entry_animation'] = self.entry_animation_toggle.isChecked()
         
+        if new_config['type'] == 'sun':
+            new_config['entry_animation'] = self.entry_animation_toggle.isChecked()
+
         if new_config['type'] == 'camera':
             new_config['camera_mode'] = 'stream'
             # Preserve existing size/span if set, otherwise default to 1x1 during creation
