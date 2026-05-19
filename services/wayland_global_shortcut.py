@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import os
+import shutil
 import uuid
 from pathlib import Path
 from typing import Callable
@@ -422,12 +423,32 @@ def supports_wayland_global_shortcuts() -> bool:
     return is_kde_wayland_session()
 
 
+def _install_appimage_icon(appdir: str) -> str:
+    """Copy the bundled AppImage icon to a persistent location and return its path."""
+    src = Path(appdir) / "usr/share/icons/hicolor/256x256/apps/prism-desktop.png"
+    if not src.exists():
+        return "prism-desktop"
+    dest_dir = Path.home() / ".local/share/icons/hicolor/256x256/apps"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / "prism-desktop.png"
+    shutil.copy2(src, dest)
+    return str(dest)
+
+
 def _ensure_desktop_file():
     """Ensure the portal app id matches an installed desktop entry."""
+    if os.environ.get("APPIMAGELAUNCHER_DISABLE") == "1" or os.environ.get("DESKTOPINTEGRATION"):
+        return
+
     desktop_dir = Path.home() / ".local" / "share" / "applications"
     desktop_file = desktop_dir / f"{APP_ID}.desktop"
     if desktop_file.exists():
         return
+
+    appimage = os.environ.get("APPIMAGE")
+    appdir = os.environ.get("APPDIR")
+    exec_path = appimage if appimage else "prism-desktop"
+    icon_path = _install_appimage_icon(appdir) if appdir else "prism-desktop"
 
     desktop_dir.mkdir(parents=True, exist_ok=True)
     desktop_file.write_text(
@@ -435,8 +456,8 @@ def _ensure_desktop_file():
         "Type=Application\n"
         "Name=Prism Desktop\n"
         "Comment=Home Assistant Tray Application\n"
-        "Exec=prism-desktop\n"
-        "Icon=prism-desktop\n"
+        f"Exec={exec_path}\n"
+        f"Icon={icon_path}\n"
         "Categories=Utility;\n"
         "Terminal=false\n"
     )

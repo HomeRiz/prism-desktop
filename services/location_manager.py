@@ -5,6 +5,8 @@ Provides a unified get_location() API that dispatches to:
   - Linux: GeoClue2 via D-Bus (dbus-next)
 """
 
+import os
+import shutil
 import sys
 import asyncio
 import logging
@@ -78,17 +80,37 @@ async def is_geoclue2_available() -> bool:
         return False
 
 
+def _install_appimage_icon(appdir: str) -> str:
+    """Copy the bundled AppImage icon to a persistent location and return its path."""
+    src = Path(appdir) / "usr/share/icons/hicolor/256x256/apps/prism-desktop.png"
+    if not src.exists():
+        return "prism-desktop"
+    dest_dir = Path.home() / ".local/share/icons/hicolor/256x256/apps"
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest = dest_dir / "prism-desktop.png"
+    shutil.copy2(src, dest)
+    return str(dest)
+
+
 def ensure_desktop_file() -> None:
     """
     Create ~/.local/share/applications/prism-desktop.desktop if it does not
     exist.  GeoClue2 requires a matching .desktop file for the DesktopId
     property or it will refuse to provide location data.
     """
+    if os.environ.get("APPIMAGELAUNCHER_DISABLE") == "1" or os.environ.get("DESKTOPINTEGRATION"):
+        return
+
     desktop_dir = Path.home() / '.local' / 'share' / 'applications'
     desktop_file = desktop_dir / 'prism-desktop.desktop'
 
     if desktop_file.exists():
         return
+
+    appimage = os.environ.get("APPIMAGE")
+    appdir = os.environ.get("APPDIR")
+    exec_path = appimage if appimage else "prism-desktop"
+    icon_path = _install_appimage_icon(appdir) if appdir else "prism-desktop"
 
     desktop_dir.mkdir(parents=True, exist_ok=True)
     desktop_file.write_text(
@@ -96,8 +118,8 @@ def ensure_desktop_file() -> None:
         "Type=Application\n"
         "Name=Prism Desktop\n"
         "Comment=Home Assistant Tray Application\n"
-        "Exec=prism-desktop\n"
-        "Icon=prism-desktop\n"
+        f"Exec={exec_path}\n"
+        f"Icon={icon_path}\n"
         "Categories=Utility;\n"
         "Terminal=false\n"
     )
