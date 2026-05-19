@@ -1,6 +1,7 @@
 """
 Input Manager for Prism Desktop
 Handles global keyboard shortcuts and mouse button triggers using pynput.
+Includes ButtonShortcutManager for per-button global shortcuts active while in tray.
 """
 
 from PyQt6.QtCore import QObject, pyqtSignal, QThread, QTimer
@@ -32,7 +33,9 @@ class InputManager(QObject):
     """
     
     triggered = pyqtSignal()
-    recorded = pyqtSignal(dict) # {type: 'keyboard'|'mouse', value: str}
+    recorded = pyqtSignal(dict)  # {type: 'keyboard'|'mouse', value: str}
+    recording_started = pyqtSignal()
+    recording_stopped = pyqtSignal()
     
     def __init__(self):
         super().__init__()
@@ -86,6 +89,7 @@ class InputManager(QObject):
     def restore_shortcut(self):
         """Restore the previously configured shortcut listener.
         Call this after recording ends or is cancelled to bring back the hotkey."""
+        self.recording_stopped.emit()
         if self._current_shortcut:
             print(f"InputManager: Restoring shortcut {self._current_shortcut}")
             self.stop_listening()
@@ -102,6 +106,7 @@ class InputManager(QObject):
         """Start recording next input."""
         self.stop_listening()
         self._is_recording = True
+        self.recording_started.emit()
         
         # Start both listeners to capture whichever comes first
         self._keyboard_listener = keyboard.Listener(
@@ -403,3 +408,124 @@ class InputManager(QObject):
         if not self._current_shortcut or self._current_shortcut.get('type') != 'keyboard':
             return False
         return is_wayland_session() and not supports_wayland_global_shortcuts()
+
+
+class ButtonShortcutManager(QObject):
+    """
+    Global keyboard listener for per-button custom shortcuts.
+    Uses a single pynput Listener so shortcuts fire even when the dashboard
+    is hidden (app sitting in the system tray).
+
+    Pauses automatically while the user is recording a new shortcut so that
+    an existing combo doesn't trigger a button in the background mid-recording.
+    """
+
+    shortcut_triggered = pyqtSignal(dict)  # emits the full button config
+
+    def __init__(self):
+        super().__init__()
+        self._listener = None
+        self._shortcuts = {}   # shortcut_str -> button config dict
+        self._pressed_mods = set()
+        self._paused = False
+
+    def update_shortcuts(self, button_configs: list):
+        """Re-register all enabled button shortcuts from the given config list."""
+        self._stop_listener()
+        self._shortcuts = {
+            sc['value']: cfg
+            for cfg in button_configs
+            if (sc := cfg.get('custom_shortcut', {})).get('enabled') and sc.get('value')
+        }
+        if self._shortcuts:
+            self._start_listener()
+        print(f"ButtonShortcutManager: {len(self._shortcuts)} active shortcut(s): {list(self._shortcuts.keys())}")
+
+    def set_paused(self, paused: bool):
+        self._paused = paused
+        if paused:
+            self._pressed_mods.clear()
+
+    def stop(self):
+        self._stop_listener()
+
+    # --- Internal ---
+
+    def _start_listener(self):
+        self._pressed_mods = set()
+        self._listener = keyboard.Listener(
+            on_press=self._on_press,
+            on_release=self._on_release,
+        )
+        self._listener.start()
+
+    def _stop_listener(self):
+        if self._listener:
+            self._listener.stop()
+            self._listener = None
+        self._pressed_mods.clear()
+
+    @staticmethod
+    def _mod_name(key):
+        name = getattr(key, 'name', None) or ''
+        if name.startswith('ctrl'):  return 'ctrl'
+        if name.startswith('alt'):   return 'alt'
+        if name.startswith('shift'): return 'shift'
+        if name.startswith('cmd') or name == 'win': return 'cmd'
+        return None
+
+    def _on_press(self, key):
+        if self._paused:
+            return
+        mod = self._mod_name(key)
+        if mod:
+            self._pressed_mods.add(mod)
+            return
+        for shortcut_str, config in self._shortcuts.items():
+            if self._matches(key, shortcut_str):
+                self.shortcut_triggered.emit(config)
+                break
+
+    def _on_release(self, key):
+        mod = self._mod_name(key)
+        if mod:
+            self._pressed_mods.discard(mod)
+
+    def _matches(self, key, shortcut_str: str) -> bool:
+        required_mods = set()
+        target = None
+
+        for part in shortcut_str.split('+'):
+            part = part.strip()
+            if part == '<ctrl>':   required_mods.add('ctrl')
+            elif part == '<alt>':  required_mods.add('alt')
+            elif part == '<shift>':required_mods.add('shift')
+            elif part == '<cmd>':  required_mods.add('cmd')
+            else: target = part
+
+        if required_mods != self._pressed_mods or target is None:
+            return False
+
+        # VK-based key like <102>
+        m = re.fullmatch(r'<(\d+)>', target)
+        if m:
+            return getattr(key, 'vk', None) == int(m.group(1))
+
+        # Single printable character: 'f', '6', etc.
+        if len(target) == 1:
+            char = getattr(key, 'char', None)
+            if char and char.lower() == target.lower():
+                return True
+            vk = getattr(key, 'vk', None)
+            if vk and 32 <= vk <= 126:
+                try:
+                    return chr(vk).lower() == target.lower()
+                except Exception:
+                    pass
+            return False
+
+        # Named special key: <f1>, <space>, <esc>, etc.
+        if target.startswith('<') and target.endswith('>'):
+            return getattr(key, 'name', None) == target[1:-1]
+
+        return False

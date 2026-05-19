@@ -56,7 +56,7 @@ from ui.dashboard import Dashboard
  
 from ui.tray_manager import TrayManager
 from services.notifications import NotificationManager
-from services.input_manager import InputManager
+from services.input_manager import InputManager, ButtonShortcutManager
 from services.local_ipc import LocalCommandServer
 from services.mobile_app import register_mobile_app, send_location_update, register_sensors, update_sensor_states, build_sensor_state_payload, SENSORS as MOBILE_APP_SENSORS
 from services.location_manager import get_location
@@ -94,6 +94,7 @@ class PrismDesktopApp(QObject):
         self.ha_client = HAClient()
         self.notification_manager = NotificationManager(ha_client=self.ha_client)
         self.input_manager = InputManager()
+        self.button_shortcut_manager = ButtonShortcutManager()
         self.local_command_server = LocalCommandServer(self)
         
         # UI Components
@@ -239,6 +240,13 @@ class PrismDesktopApp(QObject):
         self.input_manager.update_shortcut(shortcut_config)
         self.input_manager.triggered.connect(self._toggle_dashboard)
 
+        # Pause button shortcuts while the user is recording a new one
+        self.input_manager.recording_started.connect(lambda: self.button_shortcut_manager.set_paused(True))
+        self.input_manager.recording_stopped.connect(lambda: self.button_shortcut_manager.set_paused(False))
+
+        self.button_shortcut_manager.shortcut_triggered.connect(self._on_button_shortcut_triggered)
+        self._update_button_shortcuts()
+
     def init_local_ipc(self):
         """Listen for local CLI commands such as --toggle."""
         if self.local_command_server.start():
@@ -266,7 +274,16 @@ class PrismDesktopApp(QObject):
     def save_config(self):
         """Save configuration to file via ConfigManager."""
         self.config_manager.save_config()
-    
+
+    def _update_button_shortcuts(self):
+        """Sync ButtonShortcutManager with current button configs."""
+        buttons = self.config.get('buttons', [])
+        self.button_shortcut_manager.update_shortcuts(buttons)
+
+    def _on_button_shortcut_triggered(self, config: dict):
+        """Fire the button action for a globally triggered button shortcut."""
+        self.on_button_clicked(config)
+
     def init_theme(self):
         """Initialize theming."""
         theme = self.config.get('appearance', {}).get('theme', 'system')
@@ -542,6 +559,7 @@ class PrismDesktopApp(QObject):
         
         if self.input_manager:
             self.input_manager.update_shortcut(self.config.get('shortcut', {}))
+        self._update_button_shortcuts()
 
         if glass_ui_enabled and self.dashboard:
             from ui.notifications import notify_glass_ui_warning
@@ -628,11 +646,12 @@ class PrismDesktopApp(QObject):
         
         self.config['buttons'] = buttons
         self.save_config()
-        
+
         # Update Dashboard
         if self.dashboard:
             self.dashboard.set_buttons(buttons, self.config.get('appearance', {}))
-            
+        self._update_button_shortcuts()
+
         # Update subscriptions
         if new_config.get('type') == '3d_printer' and self._ha_websocket:
             for key in ['printer_state_entity', 'printer_progress_entity', 'printer_camera_entity', 'printer_nozzle_entity', 'printer_bed_entity', 'printer_nozzle_target_entity', 'printer_bed_target_entity', 'printer_pause_entity', 'printer_stop_entity', 'entity_id']:
