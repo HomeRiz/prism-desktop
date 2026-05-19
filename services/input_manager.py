@@ -362,7 +362,13 @@ class InputManager(QObject):
                  else:
                      key_str = char.lower()
             elif char and ord(char) >= 32:
-                key_str = char.lower()
+                # Non-standard VK with a char (e.g. numpad 6 → VK 102, char '6').
+                # Prefer the VK form so the listener matches by VK regardless of
+                # whether modifier keys suppress the char during the trigger press.
+                if vk:
+                    key_str = f'<{vk}>'
+                else:
+                    key_str = char.lower()
             elif hasattr(k, 'name'):
                 key_str = f"<{k.name}>"
             else:
@@ -517,7 +523,10 @@ class ButtonShortcutManager(QObject):
             if char and char.lower() == target.lower():
                 return True
             vk = getattr(key, 'vk', None)
-            if vk and 32 <= vk <= 126:
+            # Only use chr(vk) for standard letter/digit VKs where it maps correctly.
+            # Numpad VKs (96-105) are in this byte range but chr() gives wrong values.
+            is_standard_vk = vk and ((48 <= vk <= 57) or (65 <= vk <= 90))
+            if is_standard_vk:
                 try:
                     return chr(vk).lower() == target.lower()
                 except Exception:
