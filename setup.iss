@@ -2,7 +2,7 @@
 ; Requires Inno Setup: https://jrsoftware.org/isdl.php
 
 #define MyAppName "Prism Desktop"
-#define MyAppVersion "1.5.1"
+#define MyAppVersion "1.5.2"
 #define MyAppPublisher "Lasse Lian"
 #define MyAppExeName "PrismDesktop.exe"
 
