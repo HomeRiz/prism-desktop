@@ -89,18 +89,18 @@ class InputManager(QObject):
     def restore_shortcut(self):
         """Restore the previously configured shortcut listener.
         Call this after recording ends or is cancelled to bring back the hotkey."""
-        self.recording_stopped.emit()
-        if self._current_shortcut:
-            print(f"InputManager: Restoring shortcut {self._current_shortcut}")
-            self.stop_listening()
-            if self._is_unsupported_wayland_keyboard_shortcut():
-                print("InputManager: Global keyboard shortcut disabled on this Wayland desktop")
-                return
-            if self._current_shortcut.get('type') == 'keyboard':
-                self._start_keyboard_listener()
-            elif self._current_shortcut.get('type') == 'mouse':
-                self._start_mouse_listener()
-            self._health_timer.start()
+        self.stop_listening()  # emits recording_stopped if was recording
+        if not self._current_shortcut:
+            return
+        print(f"InputManager: Restoring shortcut {self._current_shortcut}")
+        if self._is_unsupported_wayland_keyboard_shortcut():
+            print("InputManager: Global keyboard shortcut disabled on this Wayland desktop")
+            return
+        if self._current_shortcut.get('type') == 'keyboard':
+            self._start_keyboard_listener()
+        elif self._current_shortcut.get('type') == 'mouse':
+            self._start_mouse_listener()
+        self._health_timer.start()
 
     def start_recording(self):
         """Start recording next input."""
@@ -123,6 +123,8 @@ class InputManager(QObject):
 
     def stop_listening(self):
         """Stop all listeners."""
+        if self._is_recording:
+            self.recording_stopped.emit()
         self._is_recording = False
         self._health_timer.stop()
         if self._keyboard_listener:
