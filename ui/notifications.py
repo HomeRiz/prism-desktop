@@ -51,11 +51,31 @@ def notify_move_as_1x1(dashboard, orig_w: int, orig_h: int, page_num: int, on_co
 # ── Updates ───────────────────────────────────────────────────────────────────
 
 def notify_update_available(dashboard, new_version: str, on_confirm):
-    """Confirm dialog offering to open the releases page for a new version."""
+    """Confirm dialog offering to auto-install a new version."""
     dashboard.show_confirm(
         t("notifications.update_available", version=new_version),
         on_confirm=on_confirm,
     )
+
+
+def notify_update_restart(dashboard):
+    """Toast shown immediately before the app restarts after a successful update."""
+    dashboard.show_toast(t("notifications.update_restart"))
+
+
+def notify_update_success(dashboard, version: str):
+    """Toast shown on the first startup after a successful auto-update."""
+    dashboard.show_toast(t("notifications.update_success", version=version))
+
+
+def notify_update_sanity_failed(dashboard, version: str):
+    """Toast shown when the post-restart check still finds an available update."""
+    dashboard.show_toast(t("notifications.update_sanity_failed", version=version))
+
+
+def notify_update_error(dashboard):
+    """Toast shown when the auto-update process fails."""
+    dashboard.show_toast(t("notifications.update_error"))
 
 
 # ── Connection / settings ─────────────────────────────────────────────────────

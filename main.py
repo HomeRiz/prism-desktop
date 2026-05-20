@@ -143,8 +143,10 @@ class PrismDesktopApp(QObject):
             
         QTimer.singleShot(0, start_background_tasks)
         
-        # Helper for update check
+        # Helper for update / auto-update
         self._update_thread = None
+        self._auto_update_thread = None
+        self._just_updated_from: str | None = None
         self._temperature_unit_initialized = 'temperature_unit' in self.config.get('appearance', {})
         self._glass_ui_active = self.config.get('appearance', {}).get('glass_ui', False)
 
@@ -1086,24 +1088,64 @@ class PrismDesktopApp(QObject):
 
 
     def check_for_updates(self):
-        """Check for updates in background."""
-        print("Checking for updates...")
+        """Check for updates in background; runs the post-update sanity check when a flag is present."""
+        from services.auto_updater import consume_update_flag
+        self._just_updated_from = consume_update_flag()
+        if self._just_updated_from:
+            print(f"Post-update sanity check (was {self._just_updated_from})…")
+        else:
+            print("Checking for updates…")
+
         self._update_thread = UpdateCheckerThread(APP_VERSION)
         self._update_thread.update_available.connect(self.on_update_available)
+        self._update_thread.up_to_date.connect(self._on_update_check_up_to_date)
         self._update_thread.start()
+
+    @pyqtSlot()
+    def _on_update_check_up_to_date(self):
+        if self._just_updated_from:
+            from ui.notifications import notify_update_success
+            notify_update_success(self.dashboard, APP_VERSION)
+            self._just_updated_from = None
 
     @pyqtSlot(str)
     def on_update_available(self, new_version):
-        """Handle update available."""
+        if self._just_updated_from:
+            # Sanity check: the update did not change the running version.
+            from ui.notifications import notify_update_sanity_failed
+            notify_update_sanity_failed(self.dashboard, new_version)
+            self._just_updated_from = None
+            return
+
         print(f"Update available: {new_version}")
         from ui.notifications import notify_update_available
         notify_update_available(
             self.dashboard,
             new_version,
-            on_confirm=lambda: QDesktopServices.openUrl(
-                QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")
-            ),
+            on_confirm=self._run_auto_update,
         )
+
+    def _run_auto_update(self):
+        from services.auto_updater import AutoUpdateThread, restart_app
+        self._auto_update_thread = AutoUpdateThread()
+        self._auto_update_thread.success.connect(self._on_auto_update_success)
+        self._auto_update_thread.error.connect(self._on_auto_update_error)
+        self._auto_update_thread.start()
+
+    @pyqtSlot(str)
+    def _on_auto_update_success(self, result):
+        if result == "already_up_to_date":
+            return
+        from ui.notifications import notify_update_restart
+        from services.auto_updater import restart_app
+        notify_update_restart(self.dashboard)
+        QTimer.singleShot(1500, restart_app)
+
+    @pyqtSlot(str)
+    def _on_auto_update_error(self, error):
+        print(f"Auto-update error: {error}")
+        from ui.notifications import notify_update_error
+        notify_update_error(self.dashboard)
 
 
 def _read_language_from_config() -> str:

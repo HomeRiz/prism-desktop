@@ -113,6 +113,7 @@ class SettingsWidget(QWidget):
         
         self._test_thread: Optional[ConnectionTestThread] = None
         self._update_thread = None
+        self._auto_update_thread = None
         self._geoclue_thread = None
         self._pin_window = False
 
@@ -955,9 +956,43 @@ class SettingsWidget(QWidget):
         self.update_label.setText(t("settings.support.update_available", tag=tag))
         self.update_label.setStyleSheet("color: #FF8C00; font-weight: bold; font-size: 11px;")
 
-        self.update_btn.setText(t("settings.support.download_btn"))
+        self.update_btn.setText(t("settings.support.install_btn"))
         self.update_btn.clicked.disconnect()
-        self.update_btn.clicked.connect(lambda: QDesktopServices.openUrl(QUrl("https://github.com/lasselian/Prism-Desktop/releases/latest")))
+        self.update_btn.clicked.connect(self._start_auto_update)
+
+    def _start_auto_update(self):
+        from services.auto_updater import AutoUpdateThread
+        self.update_btn.setEnabled(False)
+        self.update_label.setText(t("settings.support.updating"))
+        self.update_label.setStyleSheet("color: #aaa; font-size: 11px;")
+
+        self._auto_update_thread = AutoUpdateThread()
+        self._auto_update_thread.progress.connect(
+            lambda msg: self.update_label.setText(msg)
+        )
+        self._auto_update_thread.success.connect(self._on_auto_update_success)
+        self._auto_update_thread.error.connect(self._on_auto_update_error)
+        self._auto_update_thread.start()
+
+    @pyqtSlot(str)
+    def _on_auto_update_success(self, result):
+        if result == "already_up_to_date":
+            self.on_up_to_date()
+            return
+        self.update_label.setText(t("settings.support.restarting"))
+        self.update_label.setStyleSheet("color: #34A853; font-size: 11px;")
+        from services.auto_updater import restart_app
+        QTimer.singleShot(1200, restart_app)
+
+    @pyqtSlot(str)
+    def _on_auto_update_error(self, error):
+        self.update_label.setText(t("settings.support.update_failed"))
+        self.update_label.setStyleSheet("color: #e53935; font-size: 11px;")
+        self.update_label.setToolTip(error)
+        self.update_btn.setEnabled(True)
+        self.update_btn.setText(t("settings.support.install_btn"))
+        self.update_btn.clicked.disconnect()
+        self.update_btn.clicked.connect(self._start_auto_update)
 
     @pyqtSlot()
     def on_up_to_date(self):
@@ -979,6 +1014,9 @@ class SettingsWidget(QWidget):
         if self._update_thread and self._update_thread.isRunning():
             self._update_thread.quit()
             self._update_thread.wait(500)
+        if self._auto_update_thread and self._auto_update_thread.isRunning():
+            self._auto_update_thread.quit()
+            self._auto_update_thread.wait(2000)
         if self._geoclue_thread and self._geoclue_thread.isRunning():
             self._geoclue_thread.quit()
             self._geoclue_thread.wait(500)
