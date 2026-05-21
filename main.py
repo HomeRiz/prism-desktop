@@ -63,7 +63,7 @@ from services.input_manager import InputManager, ButtonShortcutManager
 from services.local_ipc import LocalCommandServer
 from services.mobile_app import register_mobile_app, send_location_update, register_sensors, update_sensor_states, build_sensor_state_payload, SENSORS as MOBILE_APP_SENSORS
 from services.location_manager import get_location
-from ui.icons import load_mdi_font
+from ui.icons import load_mdi_font, icon_signals
 from services.update_checker import UpdateCheckerThread
 from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtCore import QUrl
@@ -157,6 +157,9 @@ class PrismDesktopApp(QObject):
         # Welcome banner on first launch
         self._welcome_banner = None
         QTimer.singleShot(800, self._maybe_show_welcome)
+
+        # Refresh buttons once the MDI mapping finishes loading in the background
+        icon_signals.mapping_loaded.connect(self._on_mdi_mapping_loaded)
 
         # Check for updates
         QTimer.singleShot(2000, self.check_for_updates)
@@ -1086,6 +1089,15 @@ class PrismDesktopApp(QObject):
                     self.dashboard.update_media_art(entity_id, pixmap)
 
 
+
+    @pyqtSlot()
+    def _on_mdi_mapping_loaded(self):
+        if self.dashboard and self.dashboard._all_button_configs:
+            self.dashboard.set_buttons(
+                self.dashboard._all_button_configs,
+                self.dashboard.config.get('appearance', {}),
+                update_height=False,
+            )
 
     def check_for_updates(self):
         """Check for updates in background; runs the post-update sanity check when a flag is present."""

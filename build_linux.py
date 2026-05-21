@@ -99,6 +99,12 @@ def find_appimagetool(arch):
 
 def build_binary(base_dir):
     """Build the standalone binary using PyInstaller in a clean virtual environment."""
+    # Ensure MDI mapping is present so it gets bundled (required for offline users)
+    sys.path.insert(0, str(base_dir))
+    from generate_mdi_mapping import generate as generate_mdi_mapping
+    if not generate_mdi_mapping():
+        print("Warning: mdi_mapping.json could not be generated — icons may not work offline.")
+
     venv_dir = base_dir / '.build_venv'
     
     print("Setting up clean virtual environment...")
