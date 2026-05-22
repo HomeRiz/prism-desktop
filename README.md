@@ -97,6 +97,19 @@ Download the latest `.AppImage` from the Releases page.
 ### Manual / Portable
 You can also download the standalone `.exe` if you prefer not to install anything. Just run it, and it will create a configuration file in the same directory.
 
+### Nix (flakes)
+If you use Nix with flakes enabled, you can run or install Prism Desktop directly from the repository:
+
+```bash
+nix run github:lasselian/prism-desktop
+```
+
+To install it into your profile:
+
+```bash
+nix profile add github:lasselian/prism-desktop#default
+```
+
 ## Running from Source
 
 If you want to modify the code or run it manually:
