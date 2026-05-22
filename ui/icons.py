@@ -8,6 +8,7 @@ import json
 import re
 import urllib.request
 import ssl
+from PyQt6.QtCore import QObject, pyqtSignal
 from PyQt6.QtGui import QFontDatabase, QFont
 from core.utils import get_resource_path, get_config_path
 
@@ -16,6 +17,12 @@ MDI_FONT_FAMILY = "Material Design Icons"
 
 # Flag to track if font is loaded
 _font_loaded = False
+
+
+class _IconSignals(QObject):
+    mapping_loaded = pyqtSignal()
+
+icon_signals = _IconSignals()
 
 def load_mdi_font():
     """Load the MDI font into the application. Call once at startup."""
@@ -203,6 +210,7 @@ def fetch_mdi_mapping_worker():
             
         print(f"Saved {len(mapping)} icons to {mapping_file}")
         _mdi_cache = mapping
+        icon_signals.mapping_loaded.emit()
     except Exception as e:
         print(f"Failed to fetch MDI mapping: {e}")
     finally:
