@@ -1,166 +1,198 @@
 # Prism Desktop
-**A Home Assistant PC App for Windows & Linux**
-
-Prism Desktop brings Home Assistant to your PC with a modern, lightweight desktop experience.  
-It features a sleek dashboard with smooth animations, build in notifications, intuitive drag-and-drop customization, and deep integration with Home Assistant entities.
-
-
-<img width="623" height="600" alt="image" src="https://github.com/user-attachments/assets/bb88339a-f68c-42ac-9d09-d6b443c204d8" />
-
-
-
-
-
-
+ 
+**A Home Assistant desktop app for Windows & Linux — control your smart home from your PC.**
+ 
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey)](https://github.com/lasselian/prism-desktop/releases)
+[![Home Assistant](https://img.shields.io/badge/Home%20Assistant-WebSocket%20API-41BDF5?logo=home-assistant)](https://www.home-assistant.io/)
+[![GitHub Releases](https://img.shields.io/github/v/release/lasselian/prism-desktop)](https://github.com/lasselian/prism-desktop/releases)
+ 
+<img width="623" height="600" alt="Prism Desktop – Home Assistant dashboard on Windows" src="https://github.com/user-attachments/assets/bb88339a-f68c-42ac-9d09-d6b443c204d8" />
+---
+ 
+## What is Prism Desktop?
+ 
+Prism Desktop is a **lightweight Home Assistant client for Windows and Linux**. It lives in your system tray and gives you instant access to your smart home — lights, thermostats, cameras, sensors, and more — without opening a browser.
+ 
+Built on Home Assistant's WebSocket API, it keeps your dashboard in **real-time sync** with your home. Control entities, trigger automations, and receive PC notifications, all from a sleek, customizable dashboard.
+ 
+> **Perfect for:** Home Assistant users who want a native desktop experience on Windows or Linux instead of a browser tab.
+ 
+---
+ 
+## Table of Contents
+ 
+- [Features](#features)
+- [Supported Entities](#supported-entity-types)
+- [Installation](#installation)
+  - [Windows](#windows-installer)
+  - [Linux](#linux-appimage)
+  - [Nix (flakes)](#nix-flakes)
+  - [Running from Source](#running-from-source)
+- [Configuration](#configuration)
+- [Building](#building)
+- [Troubleshooting](#troubleshooting)
+- [License](#license)
+---
+ 
 ## Features
-
-- **System Tray Integration**: The app stays tucked away in your tray until you need it.
-- **PC notifications**: Send notifications to your PC 
-- **Resizeable dashboard**: adjust the size of your dashboard according to your needs.
-- **Morphing Controls**: Click and hold widgets to expand them into granular controls like dimmers or thermostats.
-- **Drag & Drop Customization**: Rearrange your dashboard grid simply by dragging icons around.
-- **Real-time Sync**: Uses Home Assistant's WebSocket API for instant state updates.
-- **Customizable Appearance**: Choose from different border effects (like Rainbow or Aurora) and customize button colors.
-- **Keyboard Shortcuts**: Create custom shortcuts for your button tiles
-
+ 
+- **System Tray Integration** — The app lives in your tray until you need it; never gets in your way.
+- **PC Notifications** — Receive Home Assistant alerts directly as desktop notifications.
+- **Morphing Controls** — Click and hold a widget to expand it into granular controls like dimmers or thermostats.
+- **Drag & Drop Dashboard** — Rearrange tiles freely by dragging them around the grid.
+- **Resizable Dashboard** — Adjust the dashboard size to fit your screen and workflow.
+- **Real-time Sync** — Powered by Home Assistant's WebSocket API for instant state updates.
+- **Customizable Appearance** — Choose border effects (Rainbow, Aurora, and more) and customize button colors.
+- **Keyboard Shortcuts** — Bind global shortcuts to toggle the app or trigger individual entities.
+---
+ 
 ## Supported Entity Types
-- Automation
-- Camera
-- Climate
-- Curtain / Cover
-- Fan
-- Light / Switch
-- Lawn Mower
-- Media Controller
-- Scene
-- Sun
-- Script
-- Sensor
-- Vacuum
-- Weather
-
-## 3D printer tile
-- Camera
-- Nozzle Temperature
-- Nozzle Target Temperature
-- Bed Temperature
-- Bed Target Temperature
-- State
-
-## Keyboard Shortcuts
-- **Open / Close App**: Use the shortcut defined in Settings under 'App toggle'.
-- **Custom Shortcuts**: Define custom shortcuts for any button via the Add/Edit menu.
-
-## Adjustable grid
+ 
+| Category | Entities |
+|----------|----------|
+| Lighting & Power | Light, Switch |
+| Climate | Climate (thermostat), Fan |
+| Media | Media Controller |
+| Covers | Curtain / Cover |
+| Outdoor | Lawn Mower, Vacuum |
+| Monitoring | Sensor, Sun, Weather, Camera |
+| Automation | Automation, Scene, Script |
+ 
+### 3D Printer Tile
+Dedicated tile for 3D printer monitoring:
+- Live camera feed
+- Nozzle temperature & target
+- Bed temperature & target
+- Print state
+---
+ 
+## Adjustable Grid
+ 
 ![gif-grid](https://github.com/user-attachments/assets/70d9b5f6-bef0-4f86-a6e3-59790e3f5460)
-
-## Widget overlays
+ 
+## Widget Overlays
+ 
 ![gif-overlay](https://github.com/user-attachments/assets/244bb7a7-be80-499e-a343-ec8773bb1307)
-
-
-
+ 
+---
+ 
+## Keyboard Shortcuts
+ 
+- **App Toggle**: Set a global shortcut in Settings → *App toggle* to show/hide the window from anywhere.
+- **Entity Shortcuts**: Assign custom shortcuts to any button tile via the Add/Edit menu.
+---
+ 
 ## Installation
-
+ 
 ### Windows Installer
-Download the latest `PrismDesktopSetup.exe` from the Releases page. This will install the app and optionally set it to start with Windows.
-
-### Linux Installer
-Download the latest `.AppImage` from the Releases page.
-
-1. Make it executable:
-   ```bash
-   chmod +x PrismDesktop-x86_64.AppImage
-   ```
-2. Run it:
-   ```bash
-   ./PrismDesktop-x86_64.AppImage
-   ```
-
-> **Note:** Some distributions (e.g. Ubuntu 22.04+) require `libfuse2` for AppImages to run:
+ 
+Download the latest `PrismDesktopSetup.exe` from the [Releases page](https://github.com/lasselian/prism-desktop/releases).
+ 
+The installer will set up the app and optionally configure it to start with Windows.
+ 
+Prefer not to install anything? Download the standalone `.exe` instead — it runs portably and stores its config in the same directory.
+ 
+---
+ 
+### Linux (AppImage)
+ 
+Download the latest `.AppImage` from the [Releases page](https://github.com/lasselian/prism-desktop/releases).
+ 
+```bash
+chmod +x PrismDesktop-x86_64.AppImage
+./PrismDesktop-x86_64.AppImage
+```
+ 
+> **Ubuntu 22.04+** requires `libfuse2`:
 > ```bash
 > sudo apt install libfuse2
 > ```
-
+ 
 **GNOME:**
-- Install `AppIndicator and KStatusNotifierItem Support` through `Extension Manager` for system tray support.
-- Wayland: GNOME has limited global shortcut support. As a workaround, you can bind the following command to a custom keyboard shortcut in your system settings to toggle the app:
+- Install **AppIndicator and KStatusNotifierItem Support** via Extension Manager for system tray support.
+- Wayland users: bind a custom shortcut in system settings to toggle the app:
   ```bash
   /path/to/PrismDesktop-x86_64.AppImage --toggle
   ```
-  Binding shortcuts to individual entities is not supported.
-
+  > Per-entity shortcuts are not supported on GNOME Wayland.
 **KDE:**
 - System tray works out of the box.
-- The app-toggle shortcut works via `org.freedesktop.portal.GlobalShortcuts`.
-- Binding shortcuts to individual entities is not supported on KDE.
-
-### Manual / Portable
-You can also download the standalone `.exe` if you prefer not to install anything. Just run it, and it will create a configuration file in the same directory.
-
+- App-toggle shortcut is supported via `org.freedesktop.portal.GlobalShortcuts`.
+- Per-entity shortcuts are not supported on KDE.
+---
+ 
 ### Nix (flakes)
-If you use Nix with flakes enabled, you can run or install Prism Desktop directly from the repository:
-
+ 
+Run directly without installing:
+ 
 ```bash
 nix run github:lasselian/prism-desktop
 ```
-
-To install it into your profile:
-
+ 
+Add to your profile:
+ 
 ```bash
 nix profile add github:lasselian/prism-desktop#default
 ```
-
-## Running from Source
-
-If you want to modify the code or run it manually:
-
-1. Clone this repository.
-   ```bash
-   pip install -r requirements.txt
-   ```
-3. Run the application:
-   ```bash
-   python main.py
-   ```
-
+ 
+---
+ 
+### Running from Source
+ 
+```bash
+git clone https://github.com/lasselian/prism-desktop.git
+cd prism-desktop
+pip install -r requirements.txt
+python main.py
+```
+ 
+---
+ 
 ## Configuration
+ 
+On first launch, you'll be prompted for:
+1. Your **Home Assistant URL** (e.g. `http://homeassistant.local:8123`)
+2. A **Long-Lived Access Token** — generate one in your Home Assistant profile under *Security → Long-Lived Access Tokens*
 
-Upon first launch, you will be asked for your Home Assistant URL and a Long-Lived Access Token. You can generate this token in your Home Assistant profile settings.
-
-<img width="617" height="941" alt="image" src="https://github.com/user-attachments/assets/36309cb4-a316-4469-87a0-5d1ee68f22d2" />
-
-
-
-
-
-
-
+---
+ 
 ## Building
-
+ 
 ### Windows
-To build the executable yourself, run the included build script:
-
+ 
 ```bash
 python build_exe.py
 ```
-
-This will run PyInstaller and generate a single-file executable in the `dist` folder.
-
-To build the installer, open `setup.iss` with [Inno Setup](https://jrsoftware.org/isdl.php) and compile it.
-
+ 
+This runs PyInstaller and outputs a single-file executable to `dist/`. To build the installer, open `setup.iss` with [Inno Setup](https://jrsoftware.org/isdl.php) and compile.
+ 
 ### Linux (AppImage)
-1. Download `appimagetool-x86_64.AppImage` from the [appimagetool releases](https://github.com/AppImage/appimagetool/releases) and place it in the project folder.
+ 
+1. Download `appimagetool-x86_64.AppImage` from the [appimagetool releases](https://github.com/AppImage/appimagetool/releases) and place it in the project root.
 2. Run the build script:
-
 ```bash
 python3 build_linux.py
 ```
-
-This will build the binary, create an AppDir, and package it into an AppImage.
-
+ 
+This builds the binary, creates an AppDir, and packages it into an AppImage.
+ 
+---
+ 
 ## Troubleshooting
-
-**Reverse proxy users:** If you see `WS Error: 400, message="Duplicate 'Server' header found."`, your proxy is adding a duplicate `Server` header. In Caddy, add `header_up -Server` to your `reverse_proxy` block. Other proxies may have a similar setting.
-
+ 
+**`WS Error: 400 – Duplicate 'Server' header found`**
+ 
+Your reverse proxy is adding a duplicate `Server` header. Fix for common proxies:
+ 
+- **Caddy**: Add `header_up -Server` to your `reverse_proxy` block.
+- **Other proxies**: Check for a similar "remove upstream header" option.
+---
+ 
 ## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+ 
+MIT License — see [LICENSE](LICENSE) for details.
+ 
+---
+ 
+*Keywords: Home Assistant desktop app, Home Assistant Windows client, Home Assistant Linux app, smart home dashboard PC, Home Assistant system tray, HA desktop client*
