@@ -46,11 +46,6 @@ def build():
     build_dir = base_dir / "build"
     icon_path = base_dir / "icon.png"
     font_path = base_dir / "materialdesignicons-webfont.ttf"
-
-    # Ensure MDI mapping is present so it gets bundled (required for offline users)
-    from generate_mdi_mapping import generate as generate_mdi_mapping
-    if not generate_mdi_mapping():
-        print("Warning: mdi_mapping.json could not be generated — icons may not work offline.")
     
     # Clean previous builds
     if dist_dir.exists():
@@ -62,10 +57,10 @@ def build():
     cmd = [
         sys.executable, "-m", "PyInstaller",
         "--noconsole",
-        "--onefile",
+        "--onedir",
         "--name", "PrismDesktop",
         "--add-data", f"{font_path};.",  # Windows separator is ;
-        "--exclude", "PySide6",  # Avoid Qt binding conflict
+        "--exclude-module", "PySide6",  # Avoid Qt binding conflict
     ]
     
     # Add icon if exists — Windows needs .ico, so convert from .png via Pillow
@@ -85,6 +80,7 @@ def build():
         else:
             cmd.extend(["--icon", str(icon_path)])
         
+    # Add cached mapping if exists
     mapping_path = base_dir / "mdi_mapping.json"
     if mapping_path.exists():
         cmd.extend(["--add-data", f"{mapping_path};."])
@@ -108,7 +104,7 @@ def build():
             ico_tmp.unlink()
 
     print("\nBuild complete!")
-    print(f"Executable is at: {dist_dir / 'PrismDesktop.exe'}")
+    print(f"Executable is at: {dist_dir / 'PrismDesktop' / 'PrismDesktop.exe'}")
     print("Note: Configuration is stored in %APPDATA%/PrismDesktop/config.json")
 
 if __name__ == "__main__":
