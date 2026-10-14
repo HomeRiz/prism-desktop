@@ -91,6 +91,33 @@ class ButtonEditWidget(QWidget):
         ("3D Printer", "3d_printer")
     ]
 
+    # Config keys that only mean something for certain tile types. They are
+    # dropped when a tile changes type, otherwise e.g. a former Light tile keeps
+    # service="light.toggle", which the dispatcher honours before the type.
+    TYPE_SPECIFIC_KEYS = {
+        'service': {'switch'},
+        'action': {'automation', 'lock'},
+        'script_variables': {'script'},
+        'precision': {'widget'},
+        'display_style': {'widget'},
+        'sensor_min': {'widget'},
+        'sensor_max': {'widget'},
+        'entry_animation': {'widget', 'sun'},
+        'show_album_art': {'media_player'},
+        'animated_bg': {'media_player'},
+        'camera_mode': {'camera'},
+        'camera_size': {'camera'},
+        'printer_state_entity': {'3d_printer'},
+        'printer_progress_entity': {'3d_printer'},
+        'printer_camera_entity': {'3d_printer'},
+        'printer_nozzle_entity': {'3d_printer'},
+        'printer_nozzle_target_entity': {'3d_printer'},
+        'printer_bed_entity': {'3d_printer'},
+        'printer_bed_target_entity': {'3d_printer'},
+        'printer_pause_entity': {'3d_printer'},
+        'printer_stop_entity': {'3d_printer'},
+    }
+
     @staticmethod
     def _get_type_definitions():
         return [
@@ -1325,6 +1352,10 @@ class ButtonEditWidget(QWidget):
 
         type_idx = self.type_combo.currentIndex()
         new_config['type'] = self.TYPE_DEFINITIONS[type_idx][1] if 0 <= type_idx < len(self.TYPE_DEFINITIONS) else 'switch'
+
+        for key, types in self.TYPE_SPECIFIC_KEYS.items():
+            if new_config['type'] not in types:
+                new_config.pop(key, None)
         
         # Get entity_id from combo data (UserRole), fallback to typed text
         new_config['entity_id'] = self._get_combo_entity_id(self.entity_combo)
