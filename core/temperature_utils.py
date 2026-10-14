@@ -94,5 +94,11 @@ def format_temperature(value, source_unit, preferred_unit=None, precision: int =
     if converted is None or not target_unit:
         return f"{fallback}{unit_suffix(target_unit)}" if target_unit else fallback
 
-    formatted = f"{converted:.{precision}f}".replace(".0", "")
+    formatted = f"{converted:.{precision}f}"
+    if "." in formatted:
+        # Drop trailing zeros only ("20.0" -> "20"); a blanket replace(".0", "")
+        # also ate digits inside values like "20.05".
+        formatted = formatted.rstrip("0").rstrip(".")
+    if formatted in ("-0", ""):
+        formatted = "0"
     return f"{formatted}{unit_suffix(target_unit)}"
