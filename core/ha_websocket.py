@@ -13,6 +13,10 @@ import threading
 import logging
 
 
+class AuthenticationError(Exception):
+    """Home Assistant rejected the access token."""
+
+
 class HAWebSocket(QObject):
     """WebSocket client for Home Assistant real-time updates."""
     
@@ -37,6 +41,7 @@ class HAWebSocket(QObject):
         self._push_channel_id: int = 0   # WS message ID for push_notification_channel
         self._pending_results: dict[int, asyncio.Future] = {}
         self._pending_pipeline_runs: dict[int, asyncio.Queue] = {}
+        self._auth_failed = False  # token rejected: retrying can't help (and risks an IP ban)
         self.logger = logging.getLogger(__name__)
     
     def set_webhook_id(self, webhook_id: str):
@@ -94,7 +99,7 @@ class HAWebSocket(QObject):
 
             msg = await asyncio.wait_for(self._ws.receive_json(), timeout=10)
             if msg.get('type') != 'auth_ok':
-                raise Exception(f"Authentication failed: {msg.get('message', 'Unknown error')}")
+                raise AuthenticationError(f"Authentication failed: {msg.get('message', 'Unknown error')}")
 
             self.connected.emit()
 
@@ -130,6 +135,8 @@ class HAWebSocket(QObject):
             self._running = False
             raise
         except Exception as e:
+            if isinstance(e, AuthenticationError):
+                self._auth_failed = True
             detail = str(e) or type(e).__name__  # TimeoutError stringifies to ""
             self.logger.error(f"WebSocket connection error: {detail}")
             self.error.emit(detail)
@@ -370,6 +377,13 @@ class HAWebSocket(QObject):
                 
                 # If we are here, connect() returned
                 if self._should_stop_loop:
+                    break
+
+                if self._auth_failed:
+                    # HA keeps rejecting the same token, and with ip_ban_enabled a few
+                    # failed logins get this machine banned. Wait for new credentials
+                    # (saving settings builds a fresh client).
+                    self.logger.error("WebSocket authentication failed; not retrying with the same token")
                     break
                     
                 if time.time() - start_time > 10:
