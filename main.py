@@ -155,6 +155,9 @@ class PrismDesktopApp(QObject):
         
         # Cache for entity list (for editor)
         self._available_entities: list[dict] = []
+
+        # (page, row, col) of the tile the button editor is currently open for
+        self._editor_target: Optional[tuple] = None
         
         # Service Dispatcher
         self.service_dispatcher = ServiceDispatcher(self.ha_client)
@@ -881,6 +884,10 @@ class PrismDesktopApp(QObject):
             col = slot % self.dashboard.cols
             page = self._current_page()
 
+        # Remember where this edit belongs: the slot index alone can't express a
+        # button on another page or one hidden by a narrower column count.
+        self._editor_target = (page, row, col)
+
         buttons = self.config.get('buttons', [])
         existing_config = next(
             (b for b in buttons if b.get('row') == row and b.get('col') == col and b.get('page', 0) == page),
@@ -893,10 +900,14 @@ class PrismDesktopApp(QObject):
         """Propagate button edit to config."""
         buttons = self.config.get('buttons', [])
 
-        # Convert runtime slot to (row, col), scoped to current page
-        row = slot // self.dashboard.cols
-        col = slot % self.dashboard.cols
-        page = self._current_page()
+        # Use the position the editor was opened for; fall back to the slot index
+        if self._editor_target is not None:
+            page, row, col = self._editor_target
+            self._editor_target = None
+        else:
+            row = slot // self.dashboard.cols
+            col = slot % self.dashboard.cols
+            page = self._current_page()
 
         # Remove old config at this (row, col, page)
         buttons = [b for b in buttons if not (b.get('row') == row and b.get('col') == col and b.get('page', 0) == page)]
