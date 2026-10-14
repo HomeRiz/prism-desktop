@@ -117,6 +117,16 @@ class OverlayManager(QObject):
             self.close_all_overlays()
         return False
 
+    def _emit_service(self, request: dict):
+        """Forward an overlay's service call to the app.
+
+        These are deliberate, distinct actions (a temperature step, then a mode,
+        then a fan speed...), not accidental double-clicks, so they bypass the
+        per-entity click debounce that would otherwise swallow the later ones.
+        """
+        request.setdefault("skip_debounce", True)
+        self.service_request.emit(request)
+
     def any_overlay_open(self) -> bool:
         """Return True if any overlay is currently visible."""
         return (self.dimmer_overlay.isVisible() or
@@ -575,7 +585,7 @@ class OverlayManager(QObject):
             return
             
         # Live update for lights
-        self.service_request.emit({
+        self._emit_service({
             "service": "light.turn_on",
             "entity_id": self._active_dimmer_entity,
             "service_data": {"brightness_pct": val},
@@ -591,13 +601,13 @@ class OverlayManager(QObject):
         
         if final_val is not None and entity_id:
             if dimmer_type == 'curtain':
-                self.service_request.emit({
+                self._emit_service({
                     "service": "cover.set_cover_position",
                     "entity_id": entity_id,
                     "service_data": {"position": final_val}
                 })
             elif dimmer_type == 'media_player':
-                self.service_request.emit({
+                self._emit_service({
                     "service": "media_player.volume_set",
                     "entity_id": entity_id,
                     "service_data": {"volume_level": final_val / 100.0},
@@ -606,7 +616,7 @@ class OverlayManager(QObject):
             # Lights are usually handled by live update, but send one final to be sure? 
             # Or if live dimming was off.
             elif dimmer_type != 'curtain' and (not self._live_dimming or final_val is not None):
-                 self.service_request.emit({
+                 self._emit_service({
                     "service": "light.turn_on",
                     "entity_id": entity_id,
                     "service_data": {"brightness_pct": final_val},
@@ -736,7 +746,7 @@ class OverlayManager(QObject):
         if service_temp is None:
             service_temp = val
         
-        self.service_request.emit({
+        self._emit_service({
             "service": "climate.set_temperature",
             "entity_id": self._active_climate_entity,
             "service_data": {"temperature": service_temp}
@@ -744,7 +754,7 @@ class OverlayManager(QObject):
 
     def on_climate_mode_changed(self, mode):
         if self._active_climate_entity:
-            self.service_request.emit({
+            self._emit_service({
                 "service": "climate.set_hvac_mode",
                 "entity_id": self._active_climate_entity,
                 "service_data": {"hvac_mode": mode}
@@ -752,7 +762,7 @@ class OverlayManager(QObject):
 
     def on_climate_fan_changed(self, mode):
         if self._active_climate_entity:
-             self.service_request.emit({
+             self._emit_service({
                 "service": "climate.set_fan_mode",
                 "entity_id": self._active_climate_entity,
                 "service_data": {"fan_mode": mode}
@@ -862,14 +872,14 @@ class OverlayManager(QObject):
         if action in ('pause', 'resume'):
             entity = self._active_printer_config.get('printer_pause_entity')
             if entity:
-                self.service_request.emit({
+                self._emit_service({
                     "service": "button.press",
                     "entity_id": entity
                 })
         elif action == 'stop':
             entity = self._active_printer_config.get('printer_stop_entity')
             if entity:
-                self.service_request.emit({
+                self._emit_service({
                     "service": "button.press",
                     "entity_id": entity
                 })
@@ -943,7 +953,7 @@ class OverlayManager(QObject):
     def on_mower_action(self, action: str):
         if not self._active_mower_entity:
             return
-        self.service_request.emit({
+        self._emit_service({
             "service": f"lawn_mower.{action}",
             "entity_id": self._active_mower_entity
         })
@@ -1016,7 +1026,7 @@ class OverlayManager(QObject):
     def on_vacuum_action(self, action: str):
         if not self._active_vacuum_entity:
             return
-        self.service_request.emit({
+        self._emit_service({
             "service": f"vacuum.{action}",
             "entity_id": self._active_vacuum_entity
         })
@@ -1149,7 +1159,7 @@ class OverlayManager(QObject):
         if not self._active_alarm_entity:
             return
         service_data = {'code': code} if code else {}
-        self.service_request.emit({
+        self._emit_service({
             "service": f"alarm_control_panel.alarm_{action}",
             "entity_id": self._active_alarm_entity,
             "service_data": service_data,
