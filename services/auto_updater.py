@@ -242,19 +242,24 @@ class AutoUpdateThread(QThread):
         """
         appimage_env = os.environ.get("APPIMAGE")
         current = Path(appimage_env).resolve() if appimage_env else Path(sys.executable).resolve()
-        appimage_path.chmod(0o755)
+        # Stage the new file next to the target and rename it into place. A rename
+        # is atomic and works on a running executable (only opening it for writing
+        # fails with ETXTBSY), and the old AppImage stays untouched until the
+        # replacement is completely on disk. The download lives in /tmp, usually a
+        # different filesystem, so a plain move would delete first and then copy.
+        staged = current.with_name(current.name + ".new")
         try:
-            # Unlink before replacing: opening an in-use executable for writing
-            # raises ETXTBSY on Linux. Removing the directory entry lets the
-            # kernel keep the old inode alive for the running process while we
-            # place the new file at that path.
-            if current.exists():
-                current.unlink()
-            shutil.move(str(appimage_path), str(current))
+            shutil.copy2(appimage_path, staged)
+            staged.chmod(0o755)
+            os.replace(staged, current)
         except PermissionError:
+            staged.unlink(missing_ok=True)
             raise OSError(
                 f"Cannot replace {current} — check that you own the file or have write permission."
             )
+        except BaseException:
+            staged.unlink(missing_ok=True)
+            raise
 
     def _apply_macos(self, zip_path: Path) -> None:
         """
