@@ -578,24 +578,16 @@ class Dashboard(QWidget):
         
         # Apply relocations: update displaced buttons' config positions
         for btn, new_r, new_c in relocations:
+            # btn.config is the same dict as the entry in the master config list, so
+            # this also persists. (Matching by entity_id here used to hit the wrong
+            # tile whenever a tile had been duplicated.)
             btn.config['row'] = new_r
             btn.config['col'] = new_c
-            # Also update the master config list so persistence works
-            for cfg in self._button_configs:
-                if cfg.get('entity_id') == btn.config.get('entity_id'):
-                    cfg['row'] = new_r
-                    cfg['col'] = new_c
-                    break
         
         source_btn.config['span_x'] = valid_span_x
         source_btn.config['span_y'] = valid_span_y
         
-        # Also update master config list for the resized button
-        for cfg in self._button_configs:
-            if cfg.get('entity_id') == source_btn.config.get('entity_id'):
-                cfg['span_x'] = valid_span_x
-                cfg['span_y'] = valid_span_y
-                break
+        # (source_btn.config is the master-list dict, see above)
         
         # Update button instance size (but DON'T rebuild grid during drag)
         source_btn.set_spans(valid_span_x, valid_span_y, animate=True)
