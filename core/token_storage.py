@@ -9,6 +9,7 @@ is always the freshest copy and is checked first.
 The module probes the keyring once on first use and caches the result.
 """
 
+import functools
 import os
 import sys
 import logging
@@ -165,6 +166,36 @@ def _get_machine_seed() -> bytes:
     return seed.encode("utf-8")
 
 
+def _write_private(path: Path, data: bytes) -> None:
+    """Atomically write `data` to `path`, readable by the current user only.
+
+    The key is derived from the (world-readable) machine id plus the salt, so
+    file permissions are what actually keep other local users out.
+    """
+    tmp = path.with_name(path.name + ".tmp")
+    fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
+def _tighten(path: Path) -> None:
+    """Best effort: make a pre-existing token file private (older versions wrote 0644)."""
+    try:
+        if path.exists() and os.name == "posix":
+            os.chmod(path, 0o600)
+    except OSError:
+        pass
+
+
+@functools.lru_cache(maxsize=4)
 def _derive_key(salt: bytes) -> bytes:
     """Derive a Fernet key from the machine seed + salt."""
     kdf = PBKDF2HMAC(
@@ -186,13 +217,14 @@ def _enc_store(token: str) -> None:
     # Load or create salt
     if salt_path.exists():
         salt = salt_path.read_bytes()
+        _tighten(salt_path)
     else:
         salt = os.urandom(16)
-        salt_path.write_bytes(salt)
+        _write_private(salt_path, salt)
 
     key = _derive_key(salt)
     f = Fernet(key)
-    enc_path.write_bytes(f.encrypt(token.encode("utf-8")))
+    _write_private(enc_path, f.encrypt(token.encode("utf-8")))
     logger.info("[TokenStorage] Token stored in encrypted file.")
 
 
@@ -206,6 +238,8 @@ def _enc_load() -> str:
         return ""
 
     try:
+        _tighten(enc_path)
+        _tighten(salt_path)
         salt = salt_path.read_bytes()
         key = _derive_key(salt)
         f = Fernet(key)

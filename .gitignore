@@ -1,5 +1,10 @@
 # User Configuration (Secrets)
 config.json
+config.json.bak
+.config_*.tmp
+.ha_token.enc
+.ha_token.salt
+.ha_token.*.tmp
 
 # Build Artifacts
 dist/
