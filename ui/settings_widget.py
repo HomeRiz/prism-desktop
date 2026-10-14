@@ -1290,7 +1290,7 @@ class SettingsWidget(QWidget):
 
         button_style_map = {'gradient': 0, 'flat': 1}
         self.button_style_combo.setCurrentIndex(
-            button_style_map.get(app.get('button_style', 'gradient'), 0)
+            button_style_map.get(str(app.get('button_style', 'gradient')).lower(), 0)
         )
 
         self.show_dimming_check.setChecked(app.get('show_dimming', False))
