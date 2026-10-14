@@ -178,6 +178,11 @@ class GridManager:
                     button.reset_state()
                     if new_entity and new_entity in self.dashboard._entity_states:
                         button.apply_ha_state(self.dashboard._entity_states[new_entity])
+                elif (cfg.get('type') == 'widget' and new_entity
+                        and new_entity in self.dashboard._entity_states):
+                    # Same entity, but precision may have changed: temperature readings
+                    # are formatted when the state arrives, so format them again.
+                    button.apply_ha_state(self.dashboard._entity_states[new_entity])
                 
                 button.set_spans(sx, sy)
                 button.update_content()
