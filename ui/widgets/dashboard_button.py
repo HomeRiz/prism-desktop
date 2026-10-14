@@ -23,7 +23,11 @@ import sys
 # Custom MIME type for drag and drop
 MIME_TYPE = "application/x-hatray-slot"
 
-_SENSOR_VALUE_RE = re.compile(r"([+-]?\d*\.?\d+)(.*)")
+# A number optionally followed by a unit. The unit may not start with a character that
+# would make the number just the front of something else ("12:34", "2024-05-01", "1.2.3").
+_SENSOR_VALUE_RE = re.compile(
+    r"([+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)(\s*[^\s\d:.\-/+].*|\s*)$"
+)
 
 
 def _parse_sensor_value(raw, precision=1):
@@ -1263,7 +1267,13 @@ class DashboardButton(QFrame):
                     )
                 )
             else:
-                self.set_value(f"{value}{unit}")
+                try:
+                    float(value)
+                    numeric = True
+                except (TypeError, ValueError):
+                    numeric = False
+                # Only numbers carry the unit; "unavailable"/"on"/"12:34" are shown as-is
+                self.set_value(f"{value}{unit}" if numeric else str(value))
         elif btn_type == 'climate':
             # Update climate target temperature
             temp = attributes.get('temperature', '--')
