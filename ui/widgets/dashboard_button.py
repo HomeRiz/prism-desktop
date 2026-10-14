@@ -1546,6 +1546,9 @@ class DashboardButton(QFrame):
         """What a tap on this lock button would do right now: 'lock', 'unlock', or None."""
         if not self.config or self.config.get('type') != 'lock':
             return None
+        configured = self.config.get('action')
+        if configured in ('lock', 'unlock'):
+            return configured  # tile is set to always lock / always unlock
         return 'unlock' if self._state == 'locked' else 'lock'
 
     def _cancel_lock_hold(self):
@@ -1958,8 +1961,7 @@ class DashboardButton(QFrame):
                  self.alarm_requested.emit(self.slot, rect)
              elif self.config and self.config.get('type') == 'lock':
                  # Toggle lock state
-                 action = 'unlock' if self._state == 'locked' else 'lock'
-                 self.clicked.emit({**self.config, 'action': action})
+                 self.clicked.emit({**self.config, 'action': self._lock_resolve_action()})
              else:
                  self.clicked.emit(self.config)
         self._drag_start_pos = None

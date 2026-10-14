@@ -1,4 +1,7 @@
+import logging
 import time
+
+logger = logging.getLogger(__name__)
 
 class ServiceDispatcher:
     """Handles dispatching of Home Assistant services based on UI actions."""
@@ -62,10 +65,19 @@ class ServiceDispatcher:
             service = 'turn_on'
         elif btn_type == 'lock':
             domain = 'lock'
-            # Check cached state/toggle
-            state = await self.ha_client.get_state(entity_id)
-            current = state.get('state') if state else 'locked'
-            service = 'unlock' if current == 'locked' else 'lock'
+            action = config.get('action')
+            if action in ('lock', 'unlock'):
+                # Explicit request (tile setting, or the tap/hold the user made).
+                service = action
+            else:
+                state = await self.ha_client.get_state(entity_id)
+                current = state.get('state') if state else None
+                if current is None:
+                    # Never guess a direction for a lock: a failed read must not
+                    # turn into an unlock.
+                    logger.warning("Lock toggle skipped: could not read state of %s", entity_id)
+                    return
+                service = 'unlock' if current == 'locked' else 'lock'
         elif btn_type == 'lawn_mower':
             domain = 'lawn_mower'
             state = await self.ha_client.get_state(entity_id)
