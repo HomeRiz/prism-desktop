@@ -832,7 +832,13 @@ class ButtonEditWidget(QWidget):
         if not text:
             return ""
             
-        # If it matches an item, return its data
+        # Prefer the selected row: several entities can share one friendly name,
+        # and findText() would always resolve to the first of them.
+        cur = combo.currentIndex()
+        if cur >= 0 and combo.itemText(cur) == text:
+            return combo.itemData(cur)
+
+        # Otherwise (text typed by hand) match by display text
         idx = combo.findText(text)
         if idx >= 0:
             return combo.itemData(idx)
