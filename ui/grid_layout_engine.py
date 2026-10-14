@@ -244,3 +244,41 @@ class GridLayoutEngine:
                 if self._can_place(r, c, span_x, span_y, max_rows, occupied):
                     return r, c
         return None, None
+
+
+def _is_real_button(cfg: dict) -> bool:
+    return bool(cfg.get('entity_id') or cfg.get('type') == 'pin_window')
+
+
+def plan_move(configs: list, source: dict, target, tgt_row: int, tgt_col: int,
+              cols: int, rows: int):
+    """Plan dropping `source` onto the cell (tgt_row, tgt_col).
+
+    If `target` (a button config occupying that cell) is given, the two buttons
+    swap origins; otherwise `source` just moves. `configs` are all button configs
+    on the current page.
+
+    Returns {id(config): (row, col)} for the buttons that move, or None when the
+    result would push a moved button outside the grid or onto another button
+    (spans are respected, so a 2-wide tile can't land on its neighbour).
+    """
+    moves = {id(source): (tgt_row, tgt_col)}
+    if target is not None and target is not source:
+        moves[id(target)] = (source.get('row', 0), source.get('col', 0))
+
+    engine = GridLayoutEngine(cols=cols)
+    occupied = set()
+    for cfg in configs:
+        if id(cfg) in moves or not _is_real_button(cfg):
+            continue
+        engine._mark_occupied(cfg.get('row', 0), cfg.get('col', 0),
+                              cfg.get('span_x', 1), cfg.get('span_y', 1), occupied)
+
+    for cfg in (source, target):
+        if cfg is None or id(cfg) not in moves:
+            continue
+        r, c = moves[id(cfg)]
+        if not engine._can_place(r, c, cfg.get('span_x', 1), cfg.get('span_y', 1), rows, occupied):
+            return None
+        engine._mark_occupied(r, c, cfg.get('span_x', 1), cfg.get('span_y', 1), occupied)
+    return moves

@@ -42,6 +42,7 @@ from ui.widgets.notification_banner import NotificationBanner
 from ui.widgets.assist_overlay import AssistOverlay
 from ui.managers.overlay_manager import OverlayManager
 from ui.managers.grid_manager import GridManager
+from ui.grid_layout_engine import plan_move
 from ui.settings_widget import SettingsWidget
 from ui.button_edit_widget import ButtonEditWidget
 from ui.visuals.dashboard_effects import (
@@ -248,6 +249,20 @@ class Dashboard(QWidget):
 
         return QApplication.primaryScreen() or self.screen()
 
+    def _drop_allowed(self, source_btn, target_slot: int) -> bool:
+        """Whether moving/swapping `source_btn` onto `target_slot` leaves a valid layout."""
+        if not source_btn or not source_btn.config:
+            return False
+        target_btn = next((b for b in self.buttons if b.slot == target_slot), None)
+        target_cfg = target_btn.config if (target_btn and target_btn.config
+                                           and (target_btn.config.get('entity_id')
+                                                or target_btn.config.get('type') == 'pin_window')) else None
+        page_cfgs = [c for c in self._all_button_configs if c.get('page', 0) == self._current_page]
+        moves = plan_move(page_cfgs, source_btn.config, target_cfg,
+                          target_slot // self._cols, target_slot % self._cols,
+                          self._cols, self._rows)
+        return moves is not None
+
     def dragEnterEvent(self, event):
         """Accept dragging buttons."""
         if event.mimeData().hasFormat(MIME_TYPE):
@@ -301,6 +316,11 @@ class Dashboard(QWidget):
                   event.ignore()
                   return
 
+             # Block moves that would overlap another tile (spans included)
+             if target_slot != source_slot and not self._drop_allowed(source_btn, target_slot):
+                  event.ignore()
+                  return
+
         event.acceptProposedAction()
             
     def dropEvent(self, event):
@@ -338,6 +358,10 @@ class Dashboard(QWidget):
             # 2. Forbidden Check
             target_btn = next((b for b in self.buttons if b.slot == target_slot), None)
             if target_btn and target_btn.config and target_btn.config.get('type') == 'forbidden':
+                return
+
+            # 3. Overlap Check
+            if not self._drop_allowed(source_btn, target_slot):
                 return
                 
             self.on_button_dropped(source_slot, target_slot)

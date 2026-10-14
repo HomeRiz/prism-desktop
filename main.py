@@ -86,6 +86,7 @@ from ui.theme_manager import ThemeManager
 from core.ha_client import HAClient
 from core.ha_websocket import HAWebSocket
 from ui.dashboard import Dashboard
+from ui.grid_layout_engine import plan_move
  
 from ui.tray_manager import TrayManager
 from services.notifications import NotificationManager
@@ -1002,22 +1003,21 @@ class PrismDesktopApp(QObject):
 
         target_btn = next((b for b in buttons if b.get('row') == tgt_row and b.get('col') == tgt_col and b.get('page', 0) == page), None)
         
-        if target_btn:
-            # Swap (row, col)
-            source_btn['row'], target_btn['row'] = tgt_row, src_row
-            source_btn['col'], target_btn['col'] = tgt_col, src_col
-        else:
-            # Move to empty cell
-            # Clamp to bounds to prevent disappearing
-            sx = source_btn.get('span_x', 1)
-            sy = source_btn.get('span_y', 1)
-            
-            valid_tgt_col = max(0, min(tgt_col, cols - sx))
-            valid_tgt_row = max(0, min(tgt_row, self.dashboard.rows - sy))
-            
-            source_btn['row'] = valid_tgt_row
-            source_btn['col'] = valid_tgt_col
-            
+        if target_btn is not None and not (target_btn.get('entity_id') or target_btn.get('type') == 'pin_window'):
+            target_btn = None  # placeholder config, not a real tile
+
+        # Spans matter: refuse a move that would push a tile off the grid or on
+        # top of another tile (the overlapped tile would silently disappear).
+        page_cfgs = [b for b in buttons if b.get('page', 0) == page]
+        moves = plan_move(page_cfgs, source_btn, target_btn, tgt_row, tgt_col,
+                          cols, self.dashboard.rows)
+        if moves is None:
+            logger.info("Rejected button move: target position is not free")
+            return
+        for cfg in page_cfgs:
+            if id(cfg) in moves:
+                cfg['row'], cfg['col'] = moves[id(cfg)]
+
         self.config['buttons'] = buttons
         self.save_config()
 
