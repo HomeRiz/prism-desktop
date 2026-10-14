@@ -167,6 +167,7 @@ class ButtonEditWidget(QWidget):
         
         self.setup_ui()
         self.load_config()
+        self.cancelled.connect(self._abort_recording)
     
     def _update_stylesheet(self):
         """Update the stylesheet matching the active theme."""
@@ -1346,6 +1347,7 @@ class ButtonEditWidget(QWidget):
 
     def save(self):
         """Save changes and emit config."""
+        self._abort_recording()
         new_config = self.config.copy() if self.config else {}
         new_config['slot'] = self.slot
         new_config['label'] = self.label_input.text().strip()
@@ -1477,6 +1479,21 @@ class ButtonEditWidget(QWidget):
         self.record_btn.setChecked(False)
         self.record_icon.setStyleSheet("background-color: white; border-radius: 6px;")
         self.shortcut_display.setText(shortcut.get('value', ''))
+        # Recording stopped the global listeners; bring the dashboard hotkey back.
+        if self.input_manager:
+            self.input_manager.restore_shortcut()
+
+    def _abort_recording(self):
+        """Stop an in-progress shortcut recording (editor saved or cancelled mid-record)."""
+        if not self.record_btn.isChecked():
+            return
+        self.record_btn.setChecked(False)
+        self.record_icon.setStyleSheet("background-color: white; border-radius: 6px;")
+        if self.input_manager:
+            self.input_manager.restore_shortcut()
+        if self.shortcut_display.text() == t("settings.shortcut.recording"):
+            sc = self.config.get('custom_shortcut', {}) if self.config else {}
+            self.shortcut_display.setText(sc.get('value', ''))
 
     def keyPressEvent(self, event):
         if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
