@@ -254,6 +254,22 @@ def store_token(token: str) -> None:
     _enc_store(token)
 
 
+def clear_token() -> None:
+    """Remove the stored HA token from every backend (keyring and encrypted file).
+
+    Only call this for an explicit user action: load_token() returns "" when a
+    backend is merely unavailable, so clearing on an empty value would destroy
+    a token that is still there.
+    """
+    _enc_delete()
+    if _probe_keyring():
+        try:
+            keyring.delete_password(SERVICE_NAME, KEY_TOKEN)
+        except Exception as e:
+            # PasswordDeleteError just means there was no entry.
+            logger.debug(f"[TokenStorage] Keyring delete skipped: {e}")
+
+
 def load_token() -> str:
     """
     Load the HA token.

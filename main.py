@@ -80,6 +80,7 @@ from PyQt6.QtCore import QObject, pyqtSlot, QTimer, QRect, Qt
 from PyQt6.QtGui import QPixmap
 
 from core.config_manager import ConfigManager
+from core.token_storage import clear_token
 from core.service_dispatcher import ServiceDispatcher
 from ui.theme_manager import ThemeManager
 from core.ha_client import HAClient
@@ -749,6 +750,10 @@ class PrismDesktopApp(QObject):
         new_token = new_ha_config.get('token', '')
 
         ha_changed = (self.ha_client.url != new_url or self.ha_client.token != new_token)
+        if self.ha_client.token and not new_token:
+            # The user emptied the token field. save_config() never writes an empty
+            # token, so without this the old one would come back on the next start.
+            clear_token()
         new_glass_ui = new_config.get('appearance', {}).get('glass_ui', False)
         glass_ui_enabled = not self._glass_ui_active and new_glass_ui
         self._glass_ui_active = new_glass_ui
