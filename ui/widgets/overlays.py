@@ -1903,6 +1903,9 @@ class AlarmOverlay(BaseOverlay):
                     color: QColor = None, base_color: QColor = None, current_state: dict = None):
         self._pending_action = None
         self._entered_code   = ''
+        self._btn_disarm     = QRect()
+        self._mode_btns      = []
+        self._keypad_btns    = []
         if current_state:
             self.update_state(current_state)
         self._text       = label
@@ -2029,6 +2032,7 @@ class AlarmOverlay(BaseOverlay):
         btn_h    = 40
         btn_rect = QRect(padding, top, rect.width() - padding * 2, btn_h)
         self._btn_disarm = btn_rect
+        self._mode_btns = []  # hit rects are only valid for the view that was just drawn
 
         scale = self._press_scale if btn_rect == self._press_rect else 1.0
         if scale != 1.0:
@@ -2062,6 +2066,7 @@ class AlarmOverlay(BaseOverlay):
     def _draw_mode_buttons(self, painter, rect, alpha, top):
         padding = 16
         self._mode_btns = []
+        self._btn_disarm = QRect()  # no Disarm button in this view
 
         modes = self._available_modes or ['arm_home', 'arm_away']
         gap     = 8
@@ -2110,6 +2115,8 @@ class AlarmOverlay(BaseOverlay):
 
     def _draw_keypad(self, painter, rect, alpha, top):
         padding = 16
+        self._mode_btns = []
+        self._btn_disarm = QRect()
 
         action_label_key = 'overlay.alarm.enter_code_disarm' if self._pending_action == 'disarm' else 'overlay.alarm.enter_code_arm'
         painter.setFont(QFont(SYSTEM_FONT, 9, QFont.Weight.DemiBold))
