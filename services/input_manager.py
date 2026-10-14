@@ -315,6 +315,10 @@ class InputManager(QObject):
                 self._start_keyboard_listener()
         elif shortcut_type == 'keyboard' and self._wayland_shortcut:
             if not self._wayland_shortcut.is_alive():
+                if getattr(self._wayland_shortcut, 'declined', False):
+                    # The portal said no; restarting would only re-open its dialog every
+                    # 30s. Stay quiet until the shortcut is changed or restored.
+                    return
                 print("InputManager: Wayland shortcut backend died, restarting...")
                 self._wayland_shortcut = None
                 self._start_keyboard_listener()

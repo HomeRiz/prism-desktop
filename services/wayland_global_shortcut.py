@@ -35,6 +35,10 @@ APP_ID = "prism-desktop"
 logger = logging.getLogger(__name__)
 
 
+class PortalDeclined(RuntimeError):
+    """The user (or compositor) refused the shortcut session or binding."""
+
+
 class WaylandGlobalShortcut:
     """Registers one global keyboard shortcut through the desktop portal."""
 
@@ -48,6 +52,9 @@ class WaylandGlobalShortcut:
         self._response_waiters: dict[str, asyncio.Future] = {}
         self._match_rules: set[str] = set()
         self._handler_installed = False
+        # True once the portal answered "no" (e.g. the user cancelled KDE's dialog).
+        # Starting again would just show the same dialog again.
+        self.declined = False
 
     def start(self):
         """Start portal registration in the running asyncio loop."""
@@ -110,6 +117,8 @@ class WaylandGlobalShortcut:
         if task.cancelled():
             return
         exc = task.exception()
+        if isinstance(exc, PortalDeclined):
+            self.declined = True
         if exc:
             logger.exception("Wayland portal shortcut backend failed", exc_info=exc)
 
@@ -173,7 +182,7 @@ class WaylandGlobalShortcut:
 
         response_code, results = await asyncio.wait_for(response_future, timeout=15)
         if response_code != 0:
-            raise RuntimeError(f"Global shortcut session was not granted (response={response_code})")
+            raise PortalDeclined(f"Global shortcut session was not granted (response={response_code})")
 
         session_handle = results["session_handle"]
         if isinstance(session_handle, Variant):
@@ -215,7 +224,7 @@ class WaylandGlobalShortcut:
 
         response_code, _results = await asyncio.wait_for(response_future, timeout=60)
         if response_code != 0:
-            raise RuntimeError(f"Global shortcut binding failed (response={response_code})")
+            raise PortalDeclined(f"Global shortcut binding failed (response={response_code})")
 
     async def _register_app_id(self):
         """Associate this host process with a stable portal app id."""
