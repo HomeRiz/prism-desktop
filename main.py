@@ -59,6 +59,9 @@ PRINTER_ENTITY_KEYS = [
     'entity_id',
 ]
 
+# Domains whose entities sit at 'unknown' until they are first activated.
+STATELESS_TRIGGER_DOMAINS = ('scene', 'button', 'input_button')
+
 if __name__ == '__main__' and TOGGLE_ARG in sys.argv[1:]:
     if send_local_command("toggle"):
         sys.exit(0)
@@ -1112,7 +1115,11 @@ class PrismDesktopApp(QObject):
         entity_id = config.get('entity_id', '')
         if entity_id:
             state = await self.ha_client.get_state(entity_id)
-            if state and state.get('state') in ('unavailable', 'unknown'):
+            # Stateless trigger entities (scenes, buttons) report 'unknown' until
+            # first used, so only 'unavailable' means they can't be triggered.
+            blocked = ('unavailable',) if entity_id.split('.', 1)[0] in STATELESS_TRIGGER_DOMAINS \
+                else ('unavailable', 'unknown')
+            if state and state.get('state') in blocked:
                 from ui.notifications import notify_entity_unavailable
                 label = config.get('label') or entity_id.split('.', 1)[-1].replace('_', ' ').title()
                 notify_entity_unavailable(self.dashboard, label)
