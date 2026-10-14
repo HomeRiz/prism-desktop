@@ -1464,6 +1464,9 @@ class PrismDesktopApp(QObject):
 
     def _run_auto_update(self):
         from services.auto_updater import AutoUpdateThread
+        # Replacing the reference to a running QThread aborts the process.
+        if self._auto_update_thread is not None and self._auto_update_thread.isRunning():
+            return
         self._auto_update_thread = AutoUpdateThread()
         self._auto_update_thread.progress.connect(self.dashboard.update_toast)
         self._auto_update_thread.success.connect(self._on_auto_update_success)

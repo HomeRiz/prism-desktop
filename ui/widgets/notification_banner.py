@@ -434,6 +434,11 @@ class NotificationBanner(QWidget):
 
     def _animate_out(self, callback):
         """Fade + slide away, then call callback."""
+        # Only ever animate out once: a second click while fading would connect
+        # the callback again and fire confirmed/finished twice.
+        if getattr(self, '_leaving', False):
+            return
+        self._leaving = True
         self._dismiss_timer.stop()
         if self._timer_anim:
             self._timer_anim.stop()

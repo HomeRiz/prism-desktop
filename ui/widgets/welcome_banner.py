@@ -290,6 +290,11 @@ class WelcomeBanner(QWidget):
             self.border_anim.start()
 
     def _animate_out(self, callback):
+        # Only ever animate out once: a second click while fading would connect
+        # the callback again and fire confirmed/finished twice.
+        if getattr(self, '_leaving', False):
+            return
+        self._leaving = True
         slide_to_y = self._target_y + (8 if self._above else -8)
 
         self._pos_anim.stop()
