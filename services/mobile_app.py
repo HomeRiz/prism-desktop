@@ -14,6 +14,7 @@ psutil.cpu_percent(interval=None)  # prime baseline; first real call always retu
 from typing import Optional
 
 from core.build_info import APP_VERSION
+from services import system_sensors
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +49,7 @@ SENSORS = [
         "unit_of_measurement": "%",
         "state_class": "measurement",
     },
+    *system_sensors.SENSOR_DEFS,
 ]
 
 
@@ -265,9 +267,20 @@ async def register_sensors(ha_url: str, webhook_id: str) -> None:
     Idempotent — HA accepts re-registration silently.
     """
     url = ha_url.rstrip("/") + f"/api/webhook/{webhook_id}"
+    # Hardware/OS-dependent sensors are only registered if this machine can read
+    # them (e.g. no battery sensors on a desktop). The probe reading doubles as
+    # the initial state.
+    optional_ids = [s["unique_id"] for s in SENSORS if s["unique_id"] in system_sensors.COLLECTORS]
+    probed = await asyncio.get_running_loop().run_in_executor(None, system_sensors.collect, optional_ids)
     try:
         async with aiohttp.ClientSession() as session:
             for sensor in SENSORS:
+                uid = sensor["unique_id"]
+                if uid in system_sensors.COLLECTORS:
+                    if uid not in probed:
+                        logger.info(f"[MobileApp] Sensor '{uid}' not available on this machine — skipping")
+                        continue
+                    sensor = {**sensor, "state": probed[uid]}
                 payload = {"type": "register_sensor", "data": sensor}
                 async with session.post(url, json=payload, timeout=10) as resp:
                     if resp.status in (200, 201):

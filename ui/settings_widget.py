@@ -669,6 +669,14 @@ class SettingsWidget(QWidget):
         self.send_ram_check.setToolTip(t("settings.ha.send_ram_tooltip"))
         toggle_form.addRow("", self.send_ram_check)
 
+        self.send_system_check = ToggleSwitch(t("settings.ha.send_system_toggle"))
+        self.send_system_check.setToolTip(t("settings.ha.send_system_tooltip"))
+        toggle_form.addRow("", self.send_system_check)
+
+        self.send_presence_check = ToggleSwitch(t("settings.ha.send_presence_toggle"))
+        self.send_presence_check.setToolTip(t("settings.ha.send_presence_tooltip"))
+        toggle_form.addRow("", self.send_presence_check)
+
         vbox.addWidget(toggle_frame)
 
         return container
@@ -1316,6 +1324,8 @@ class SettingsWidget(QWidget):
         self.send_logged_in_check.setChecked(mobile_cfg.get('send_logged_in', True))
         self.send_cpu_check.setChecked(mobile_cfg.get('send_cpu', False))
         self.send_ram_check.setChecked(mobile_cfg.get('send_ram', False))
+        self.send_system_check.setChecked(mobile_cfg.get('send_system', False))
+        self.send_presence_check.setChecked(mobile_cfg.get('send_presence', False))
 
         self.border_effect_combo.blockSignals(False)
 
@@ -1377,6 +1387,8 @@ class SettingsWidget(QWidget):
         self.config.setdefault('mobile_app', {})['send_logged_in'] = self.send_logged_in_check.isChecked()
         self.config.setdefault('mobile_app', {})['send_cpu'] = self.send_cpu_check.isChecked()
         self.config.setdefault('mobile_app', {})['send_ram'] = self.send_ram_check.isChecked()
+        self.config.setdefault('mobile_app', {})['send_system'] = self.send_system_check.isChecked()
+        self.config.setdefault('mobile_app', {})['send_presence'] = self.send_presence_check.isChecked()
 
         self.config.setdefault('assist', {})
         self.config['assist']['enabled'] = self.assist_enabled_check.isChecked()

@@ -94,6 +94,7 @@ from services.input_manager import InputManager, ButtonShortcutManager
 from services.assist_controller import AssistController
 from services.local_ipc import LocalCommandServer
 from services.mobile_app import register_mobile_app, send_location_update, register_sensors, update_sensor_states, build_sensor_state_payload, get_system_metrics
+from services.system_sensors import FAST_SENSORS, collect as collect_system_sensors, enabled_sensor_ids
 from services.location_manager import get_location
 from ui.icons import load_mdi_font, icon_signals
 from services.update_checker import UpdateCheckerThread
@@ -823,7 +824,7 @@ class PrismDesktopApp(QObject):
                 self._stop_location_loop()
             # Sync metrics loop (loop exits immediately when no webhook_id, so safe to call always)
             mobile_cfg = self.config.get('mobile_app', {})
-            if mobile_cfg.get('send_cpu', False) or mobile_cfg.get('send_ram', False):
+            if self._metrics_wanted():
                 self._start_metrics_loop()
             else:
                 self._stop_metrics_loop()
@@ -1323,37 +1324,72 @@ class PrismDesktopApp(QObject):
             pass
 
     def _start_metrics_loop(self):
-        """Start (or restart) the periodic CPU/RAM metrics update task."""
+        """Start (or restart) the periodic sensor reporting task."""
         if self._metrics_task and not self._metrics_task.done():
             self._metrics_task.cancel()
         QTimer.singleShot(0, lambda: setattr(self, '_metrics_task',
             asyncio.create_task(self._metrics_update_loop())))
 
     def _stop_metrics_loop(self):
-        """Cancel the metrics update task if running."""
+        """Cancel the sensor reporting task if running."""
         if self._metrics_task and not self._metrics_task.done():
             self._metrics_task.cancel()
             self._metrics_task = None
 
+    def _metrics_wanted(self) -> bool:
+        """True if any periodically-reported sensor is switched on."""
+        mobile_cfg = self.config.get('mobile_app', {})
+        return bool(
+            mobile_cfg.get('send_cpu', False)
+            or mobile_cfg.get('send_ram', False)
+            or enabled_sensor_ids(mobile_cfg)
+        )
+
     async def _metrics_update_loop(self):
-        """Periodically read CPU/RAM usage and push sensor states to Home Assistant."""
+        """Periodically read sensors and push their states to Home Assistant.
+
+        CPU/RAM and the slow system/presence sensors go out every 30s. The
+        lock/mic/camera sensors are polled every 10s but only pushed on change,
+        so automations react quickly without constant traffic.
+        """
         ha_config = self.config.get('home_assistant', {})
         ha_url = ha_config.get('url', '')
         webhook_id = self.config.get('mobile_app', {}).get('webhook_id', '')
         if not ha_url or not webhook_id:
             return
+        loop = asyncio.get_running_loop()
+        fast_sensors = set(FAST_SENSORS)
+        last_fast = {}
+        last_slow = float('-inf')
         try:
             while True:
                 mobile_cfg = self.config.get('mobile_app', {})
-                all_metrics = get_system_metrics()
-                metrics = {}
-                if mobile_cfg.get('send_cpu', False):
-                    metrics['cpu_usage'] = all_metrics['cpu_usage']
-                if mobile_cfg.get('send_ram', False):
-                    metrics['ram_usage'] = all_metrics['ram_usage']
-                if metrics:
-                    await update_sensor_states(ha_url, webhook_id, metrics)
-                await asyncio.sleep(30)
+                extra_ids = enabled_sensor_ids(mobile_cfg)
+                fast_ids = extra_ids & fast_sensors
+                states = {}
+
+                if time.monotonic() - last_slow >= 30:
+                    last_slow = time.monotonic()
+                    all_metrics = get_system_metrics()
+                    if mobile_cfg.get('send_cpu', False):
+                        states['cpu_usage'] = all_metrics['cpu_usage']
+                    if mobile_cfg.get('send_ram', False):
+                        states['ram_usage'] = all_metrics['ram_usage']
+                    slow_ids = extra_ids - fast_sensors
+                    if slow_ids:
+                        states.update(await loop.run_in_executor(None, collect_system_sensors, slow_ids))
+
+                # Forget fast sensors that were switched off so they re-push when re-enabled
+                last_fast = {k: v for k, v in last_fast.items() if k in fast_ids}
+                fast_changed = {}
+                if fast_ids:
+                    fast_now = await loop.run_in_executor(None, collect_system_sensors, fast_ids)
+                    fast_changed = {k: v for k, v in fast_now.items() if k not in last_fast or last_fast[k] != v}
+                    states.update(fast_changed)
+
+                if states and await update_sensor_states(ha_url, webhook_id, states):
+                    last_fast.update(fast_changed)
+                await asyncio.sleep(10 if fast_ids else 30)
         except asyncio.CancelledError:
             pass
 
