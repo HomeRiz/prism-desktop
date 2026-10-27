@@ -15,9 +15,6 @@ AppDir/
 *.AppImage
 appimagetool*
 
-# Tests (kept local, not published)
-tests/
-
 # Python
 __pycache__/
 *.py[cod]
