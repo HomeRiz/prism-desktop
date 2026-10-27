@@ -179,6 +179,8 @@ def test_every_third_party_import_is_covered_by_requirements_txt():
     for name, files in imported_top_levels().items():
         if name in stdlib or name in LOCAL_PACKAGES or name.startswith("_"):
             continue
+        if name in {"CoreFoundation", "ApplicationServices"} and sys.platform != "darwin":
+            continue
         dist = canonicalize_name(IMPORT_TO_DIST.get(name, name))
         if dist not in covered:
             missing[name] = sorted(files)
